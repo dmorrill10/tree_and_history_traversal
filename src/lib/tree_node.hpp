@@ -19,31 +19,9 @@
 extern "C" {
 #include <print_debugger.h>
 }
+#include <lib/memory.hpp>
 
 namespace NewCfr {
-#define FREE_POINTER(ptr)                                                      \
-  {                                                                            \
-    if (ptr) {                                                                 \
-      free(static_cast<void *>(ptr));                                          \
-      ptr = nullptr;                                                           \
-    }                                                                          \
-  }
-#define DELETE_POINTER(ptr)                                                    \
-  {                                                                            \
-    if (ptr) {                                                                 \
-      delete ptr;                                                              \
-      ptr = nullptr;                                                           \
-    }                                                                          \
-  }
-#define DELETE_ARRAY(array)                                                    \
-  {                                                                            \
-    if (array) {                                                               \
-      delete[] array;                                                          \
-      array = nullptr;                                                         \
-    }                                                                          \
-  }
-
-
 namespace TreeNode {
   template <typename Value>
   class TreeNode {
