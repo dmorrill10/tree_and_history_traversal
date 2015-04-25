@@ -53,6 +53,14 @@ $(VENDOR_DIR):
 # Vendor definitions
 #-------------------
 
+UTILITIES_DIR :=$(VENDOR_DIR)/utilities
+$(UTILITIES_DIR):
+	wget https://github.com/dmorrill10/cpp_utilities/archive/master.zip
+	unzip master.zip
+	mv cpp_utilities-master $(UTILITIES_DIR)
+	-rm master.zip
+
+
 VENDOR_INCLUDES :=-I$(VENDOR_DIR)
 
 LIB_OBJ  =$(VENDOR_OBJS)
@@ -103,7 +111,7 @@ INCLUDES +=$(SRC_INCLUDES)
 	@echo [CC] $@
 	@$(CC) $(CFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
 
-%.cpp.o: %.cpp $(C_LIB_OBJ)
+%.cpp.o: %.cpp $(C_LIB_OBJ) | $(UTILITIES_DIR)
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [CPP] $@
 	@$(CPP) $(CPPFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
@@ -193,7 +201,7 @@ $(TEST_SUPPORT_SRC): | $(TEST_SUPPORT_DIR)
 	@touch $@
 
 T = $(abspath $(TEST_EXECUTABLE_DIR))/$(TEST_PREFIX)
-$(T)%$(TEST_EXTENSION): $(TEST_DIR)/$(TEST_PREFIX)%$(TEST_SRC_EXTENSION) $(CPP_LIB_OBJ) $(C_LIB_OBJ) $(TEST_SUPPORT_SRC) | $(TEST_EXECUTABLE_DIR)
+$(T)%$(TEST_EXTENSION): $(TEST_DIR)/$(TEST_PREFIX)%$(TEST_SRC_EXTENSION) $(CPP_LIB_OBJ) $(C_LIB_OBJ) $(TEST_SUPPORT_SRC) | $(TEST_EXECUTABLE_DIR) $(UTILITIES_DIR)
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [CCLD] $<
 	@$(CPP) $(CPPFLAGS) $(LDFLAGS) \

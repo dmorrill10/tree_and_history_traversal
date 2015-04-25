@@ -6,11 +6,11 @@
 #include <functional>
 
 extern "C" {
-#include <print_debugger.h>
+#include <utilities/src/lib/print_debugger.h>
 }
-#include <lib/memory.hpp>
+#include <utilities/src/lib/memory.h>
 
-namespace NewCfr {
+namespace TreeAndHistoryTraversal {
 namespace History {
   /**
    * A sequence of symbols that, given any prefix,

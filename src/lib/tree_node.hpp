@@ -1,27 +1,15 @@
 #pragma once
 
 #include <vector>
-//#include <algorithm>
 #include <cassert>
-//#include <climits>
-//#include <cstdlib>
-//#include <cstring>
-//#include <exception>
 #include <functional>
-//#include <iostream>
-//#include <list>
-//#include <sstream>
-//#include <string>
-//#include <vector>
-//#include <bitset>
-//#include <random>
 
 extern "C" {
-#include <print_debugger.h>
+#include <utilities/src/lib/print_debugger.h>
 }
-#include <lib/memory.hpp>
+#include <utilities/src/lib/memory.h>
 
-namespace NewCfr {
+namespace TreeAndHistoryTraversal {
 namespace TreeNode {
   template <typename Value>
   class TreeNode {
@@ -89,7 +77,7 @@ namespace TreeNode {
       combiner_(f) {};
     virtual ~StoredInteriorNode() {
       for (auto child : children_) {
-        DELETE_POINTER(child);
+        Utilities::Memory::deletePointer(child);
       }
     };
 
@@ -107,14 +95,14 @@ namespace TreeNode {
 
     virtual void setChildren(std::vector<TreeNode<Value>*>&& children) {
       for (auto child : children_) {
-        DELETE_POINTER(child);
+        Utilities::Memory::deletePointer(child);
       }
       children_ = children;
     }
 
     virtual void setChildren(std::vector<TreeNode<Value>*>& children) {
       for (auto child : children_) {
-        DELETE_POINTER(child);
+        Utilities::Memory::deletePointer(child);
       }
       children_ = children;
     }

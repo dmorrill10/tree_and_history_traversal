@@ -8,11 +8,11 @@
 #include <lib/history.hpp>
 
 extern "C" {
-#include <print_debugger.h>
+#include <utilities/src/lib/print_debugger.h>
 }
 
 
-using namespace NewCfr;
+using namespace TreeAndHistoryTraversal;
 using namespace History;
 
 SCENARIO("Walking a string history") {

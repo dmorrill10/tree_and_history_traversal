@@ -5,13 +5,14 @@
 #include <functional>
 
 extern "C" {
-#include <print_debugger.h>
+#include <utilities/src/lib/print_debugger.h>
 }
-#include <lib/memory.hpp>
+#include <utilities/src/lib/memory.h>
+
 #include <lib/tree_node.hpp>
 #include <lib/history.hpp>
 
-namespace NewCfr {
+namespace TreeAndHistoryTraversal {
 namespace HistoryTreeNode {
   template <typename Value>
   class HistoryTreeNode : public TreeNode::TreeNode<Value> {

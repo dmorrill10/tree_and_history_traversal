@@ -8,11 +8,11 @@
 #include <lib/tree_node.hpp>
 
 extern "C" {
-#include <print_debugger.h>
+#include <utilities/src/lib/print_debugger.h>
 }
 
 
-using namespace NewCfr;
+using namespace TreeAndHistoryTraversal;
 using namespace TreeNode;
 
 SCENARIO("Traversing a tree") {
