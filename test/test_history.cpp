@@ -24,6 +24,7 @@ SCENARIO("Walking a string history") {
         }
     );
     REQUIRE(patient.isEmpty());
+    REQUIRE(patient.hasSuccessors());
     REQUIRE("" == patient.toString());
     REQUIRE("" == patient.last());
     THEN("#push and #pop work") {
@@ -31,17 +32,21 @@ SCENARIO("Walking a string history") {
       REQUIRE("a" == patient.toString());
       REQUIRE("a" == patient.last());
       REQUIRE(!patient.isEmpty());
+      REQUIRE(patient.hasSuccessors());
       patient.push("b");
       REQUIRE("a -> b" == patient.toString());
       REQUIRE("b" == patient.last());
       REQUIRE(!patient.isEmpty());
+      REQUIRE(patient.hasSuccessors());
       patient.pop();
       REQUIRE("a" == patient.toString());
       REQUIRE("a" == patient.last());
       REQUIRE(!patient.isEmpty());
+      REQUIRE(patient.hasSuccessors());
       patient.pop();
       REQUIRE("" == patient.toString());
       REQUIRE(patient.isEmpty());
+      REQUIRE(patient.hasSuccessors());
     }
   }
   GIVEN("A set of legal characters and more complicated legal suffix check") {
@@ -56,6 +61,7 @@ SCENARIO("Walking a string history") {
         }
     );
     REQUIRE(patient.isEmpty());
+    REQUIRE(patient.hasSuccessors());
     REQUIRE("" == patient.toString());
     REQUIRE("" == patient.last());
     THEN("#push and #pop work") {
@@ -63,18 +69,22 @@ SCENARIO("Walking a string history") {
       REQUIRE("a" == patient.toString());
       REQUIRE("a" == patient.last());
       REQUIRE(!patient.isEmpty());
+      REQUIRE(patient.hasSuccessors());
       patient.push("b");
       REQUIRE("a -> b" == patient.toString());
       REQUIRE("b" == patient.last());
       REQUIRE(!patient.isEmpty());
+      REQUIRE(patient.hasSuccessors());
       patient.push("c");
       REQUIRE("a -> b -> c" == patient.toString());
       REQUIRE("c" == patient.last());
       REQUIRE(!patient.isEmpty());
+      REQUIRE(patient.hasSuccessors());
       patient.pop();
       REQUIRE("a -> b" == patient.toString());
       REQUIRE("b" == patient.last());
       REQUIRE(!patient.isEmpty());
+      REQUIRE(patient.hasSuccessors());
 
       REQUIRE_THROWS(patient.push("a"));
 
@@ -82,9 +92,11 @@ SCENARIO("Walking a string history") {
       REQUIRE("a" == patient.toString());
       REQUIRE("a" == patient.last());
       REQUIRE(!patient.isEmpty());
+      REQUIRE(patient.hasSuccessors());
       patient.pop();
       REQUIRE("" == patient.toString());
       REQUIRE(patient.isEmpty());
+      REQUIRE(patient.hasSuccessors());
     }
     THEN("It creates and destroys sequences properly") {
       const std::vector<std::string> xStrings {

@@ -34,6 +34,7 @@ namespace History {
     virtual bool suffixIsLegal(const Symbol& candidate) const = 0;
     virtual Symbol last() const = 0;
     virtual bool isEmpty() const = 0;
+    virtual bool hasSuccessors() const = 0;
 
     /**
      * Breaks when true is returned from the closure and returns true itself
@@ -91,6 +92,12 @@ namespace History {
       return isEmpty() ? "" : state_.back();
     }
     virtual bool isEmpty() const { return state_.empty(); }
+    virtual bool hasSuccessors() const {
+      for (const auto& s : allLegalStrings_) {
+        if (suffixIsLegal(s)) { return true; }
+      }
+      return false;
+    }
 
     virtual std::string toString() const {
       std::string str = "";
