@@ -17,13 +17,13 @@ namespace HistoryTreeNode {
   template <typename Value>
   class HistoryTreeNode : public TreeNode::TreeNode<Value> {
   protected:
-    HistoryTreeNode(History::History* history)
+    HistoryTreeNode(History::History*&& history)
     :TreeNode::TreeNode<Value>::TreeNode(), history_(history) {
       assert(history_);
     }
 
   public:
-    virtual ~HistoryTreeNode() {}
+    virtual ~HistoryTreeNode() { DELETE_POINTER(history_); }
     virtual bool isTerminal() const { return !history_->hasSuccessors(); }
 
   protected:
