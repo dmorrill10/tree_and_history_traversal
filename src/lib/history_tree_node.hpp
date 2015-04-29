@@ -14,20 +14,20 @@ extern "C" {
 
 namespace TreeAndHistoryTraversal {
 namespace HistoryTreeNode {
-  template <typename Value>
+  template <typename Value, typename Symbol>
   class HistoryTreeNode : public TreeNode::TreeNode<Value> {
   protected:
-    HistoryTreeNode(History::History<Value>*&& history)
+    HistoryTreeNode(History::History<Symbol>*&& history)
     :TreeNode::TreeNode<Value>::TreeNode(), history_(history) {
       assert(history_);
     }
 
   public:
-    virtual ~HistoryTreeNode() { DELETE_POINTER(history_); }
+    virtual ~HistoryTreeNode() { Utilities::Memory::deletePointer(history_); }
     virtual bool isTerminal() const { return !history_->hasSuccessors(); }
 
   protected:
-    History::History<Value>* history_;
+    History::History<Symbol>* history_;
   };
 }
 }
