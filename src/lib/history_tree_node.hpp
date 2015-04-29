@@ -17,7 +17,7 @@ namespace HistoryTreeNode {
   template <typename Value>
   class HistoryTreeNode : public TreeNode::TreeNode<Value> {
   protected:
-    HistoryTreeNode(History::History*&& history)
+    HistoryTreeNode(History::History<Value>*&& history)
     :TreeNode::TreeNode<Value>::TreeNode(), history_(history) {
       assert(history_);
     }
@@ -27,7 +27,7 @@ namespace HistoryTreeNode {
     virtual bool isTerminal() const { return !history_->hasSuccessors(); }
 
   protected:
-    History::History* history_;
+    History::History<Value>* history_;
   };
 }
 }

@@ -105,19 +105,17 @@ INCLUDES +=$(SRC_INCLUDES)
 # Base rules
 #-----------
 
-#$(foreach $(OBJ_DIR),$(MAIN_OBJ),$(eval $(call TO_TARGET,$($(OBJ_DIR))): $($(OBJ_DIR))))
 %.c.o: %.c
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [CC] $@
-	@$(CC) $(CFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
+	@$(CC) -c $(CFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
 
-%.cpp.o: %.cpp $(C_LIB_OBJ) | $(UTILITIES_DIR)
+%.cpp.o: %.cpp | $(UTILITIES_DIR)
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [CPP] $@
-	@$(CPP) $(CPPFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
+	$(CPP) -c $(CPPFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
 
 $(TARGETS): $(CPP_LIB_OBJ) $(C_LIB_OBJ) $(MAIN_OBJ)
-$(TARGETS):
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [LD] $@
 	@$(CPP) $(CPPFLAGS) $(LDFLAGS) $(TO_FILE) $@ $^ $(LDLIBS)
@@ -153,7 +151,7 @@ debug: $(TARGETS)
 #-------
 .PHONY: clean
 clean:
-	-rm -fr $(THIS_DIR)/bin/* $(OBJ_DIR) $(THIS_DIR)/test/bin/* core.* $(TARGETS)
+	-rm -fr $(THIS_DIR)/bin/* $(LIB_DIR)/* $(THIS_DIR)/test/bin/* core.* $(TARGETS)
 
 .PHONY: cleandep
 cleandep:
@@ -174,7 +172,6 @@ print-%:
 CATCH_DIR :=$(VENDOR_DIR)/catch
 TEST_DIR :=$(abspath $(THIS_DIR)/test)
 TEST_SUPPORT_DIR :=$(TEST_DIR)/support
-INCLUDES +=-I$(CATCH_DIR) -I$(TEST_SUPPORT_DIR)
 TEST_SRC_EXTENSION =.cpp
 TEST_EXTENSION =.out
 TEST_PREFIX =test_
@@ -184,6 +181,7 @@ TESTS        :=$(shell find $(TEST_SUBDIRS) -type f -name '$(TEST_PREFIX)*$(TEST
 TEST_EXES_TEMP   :=$(TESTS:%$(TEST_SRC_EXTENSION)=%$(TEST_EXTENSION))
 TEST_EXES :=$(abspath $(TEST_EXES_TEMP:$(TEST_DIR)%=$(TEST_EXECUTABLE_DIR)%))
 TEST_SUPPORT_SRC :=$(TEST_SUPPORT_DIR)/test_helper.cpp
+TEST_SUPPORT_OBJ :=$(TEST_SUPPORT_DIR)/test_helper.cpp.o
 
 
 # Rules
@@ -201,19 +199,18 @@ $(TEST_SUPPORT_SRC): | $(TEST_SUPPORT_DIR)
 	@touch $@
 
 T = $(abspath $(TEST_EXECUTABLE_DIR))/$(TEST_PREFIX)
-$(T)%$(TEST_EXTENSION): $(TEST_DIR)/$(TEST_PREFIX)%$(TEST_SRC_EXTENSION) $(CPP_LIB_OBJ) $(C_LIB_OBJ) $(TEST_SUPPORT_SRC) | $(TEST_EXECUTABLE_DIR) $(UTILITIES_DIR)
+$(T)%$(TEST_EXTENSION): $(TEST_DIR)/$(TEST_PREFIX)%.cpp.o $(CPP_LIB_OBJ) $(C_LIB_OBJ) $(TEST_SUPPORT_OBJ) | $(UTILITIES_DIR)
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
-	@echo [CCLD] $<
-	@$(CPP) $(CPPFLAGS) $(LDFLAGS) \
-		$(TEST_SUPPORT_SRC) \
-		$< \
-		-o $@ \
-		$(INCLUDES) $(LDLIBS) $(LIB_OBJ)
+	@echo [LD] $@
+	@$(CPP) $(CPPFLAGS) $(TO_FILE) $@ $^ $(VENDOR_OBJS) $(POKER_LIBS) $(LDLIBS)
+	@chmod 755 $@
+
 
 .PHONY: test
 test: OPT =-O1
 test: CFLAGS +=$(OPT) $(WARNINGS)
 test: CPPFLAGS +=$(OPT) $(WARNINGS)
+test: INCLUDES +=-I$(CATCH_DIR) -I$(TEST_SUPPORT_DIR)
 test: $(TEST_EXES)
 	@for test in $^; do echo ; echo [TEST] $$test; \
 		echo "===============================================================\n";\
