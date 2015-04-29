@@ -202,7 +202,7 @@ T = $(abspath $(TEST_EXECUTABLE_DIR))/$(TEST_PREFIX)
 $(T)%$(TEST_EXTENSION): $(TEST_DIR)/$(TEST_PREFIX)%.cpp.o $(CPP_LIB_OBJ) $(C_LIB_OBJ) $(TEST_SUPPORT_OBJ) | $(UTILITIES_DIR)
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [LD] $@
-	@$(CPP) $(CPPFLAGS) $(TO_FILE) $@ $^ $(VENDOR_OBJS) $(POKER_LIBS) $(LDLIBS)
+	@$(CPP) $(CPPFLAGS) $(TO_FILE) $@ $^ $(VENDOR_OBJS) $(LDLIBS)
 	@chmod 755 $@
 
 
