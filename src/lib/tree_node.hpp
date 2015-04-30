@@ -13,10 +13,8 @@ namespace TreeAndHistoryTraversal {
 namespace TreeNode {
 template <typename Value> class TreeNode {
 public:
-  using TerminalValueFunction =
-      std::function<Value(const TreeNode<Value> *node)>;
-  using InteriorValueFunction =
-      std::function<Value(const TreeNode<Value> *node)>;
+  using TerminalValueFunction = std::function<Value()>;
+  using InteriorValueFunction = std::function<Value()>;
 
 protected:
   TreeNode(TerminalValueFunction tvf, InteriorValueFunction ivf)
@@ -27,9 +25,9 @@ public:
   virtual bool isTerminal() const = 0;
   Value value() const {
     if (isTerminal()) {
-      return terminalValueFunction_(this);
+      return terminalValueFunction_();
     } else {
-      return interiorValueFunction_(this);
+      return interiorValueFunction_();
     }
     return Value();
   }
@@ -42,8 +40,7 @@ protected:
 template <typename Value> class TerminalNode : public TreeNode<Value> {
 protected:
   TerminalNode(typename TreeNode<Value>::TerminalValueFunction tvf)
-      : TreeNode<Value>::TreeNode(
-            tvf, [](const TreeNode<Value> *) { return Value(); }) {}
+      : TreeNode<Value>::TreeNode(tvf, []() { return Value(); }) {}
 
 public:
   virtual ~TerminalNode() {}
@@ -53,8 +50,7 @@ public:
 template <typename Value> class InteriorNode : public TreeNode<Value> {
 protected:
   InteriorNode(typename TreeNode<Value>::InteriorValueFunction ivf)
-      : TreeNode<Value>::TreeNode(
-            [](const TreeNode<Value> *) { return Value(); }, ivf) {}
+      : TreeNode<Value>::TreeNode([]() { return Value(); }, ivf) {}
 
 public:
   virtual ~InteriorNode() {}
@@ -65,7 +61,7 @@ template <typename Value>
 class StoredTerminalNode : public TerminalNode<Value> {
 public:
   StoredTerminalNode(Value value)
-      : TerminalNode<Value>::TerminalNode([value](const TreeNode<Value> *) {
+      : TerminalNode<Value>::TerminalNode([value]() {
           // Move semantics could be used in a generalized lambda, but it's a
           // C++14
           // feature, so it's not necessary for these types used largely for
@@ -81,7 +77,7 @@ template <typename Value>
 class StoredInteriorNode : public InteriorNode<Value> {
 public:
   StoredInteriorNode(std::function<Value(Value &&childValue)> f)
-      : InteriorNode<Value>::InteriorNode([f](const TreeNode<Value> *self) {
+      : InteriorNode<Value>::InteriorNode([f, this]() {
           // Move semantics could be used in a generalized lambda, but it's a
           // C++14
           // feature, so it's not necessary for these types used largely for
@@ -89,10 +85,7 @@ public:
           //    ):InteriorNode<Value>::InteriorNode([f = std::move(f)](const
           //    TreeNode<Value>* self) {
           Value toReturn;
-          assert(static_cast<const StoredInteriorNode<Value> *>(self));
-          for (
-              const auto child :
-              static_cast<const StoredInteriorNode<Value> *>(self)->children_) {
+          for (const auto child : this->children_) {
             assert(child);
             toReturn = f(child->value());
           }

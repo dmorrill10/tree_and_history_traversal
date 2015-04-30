@@ -40,19 +40,13 @@ public:
    * Breaks when true is returned from the closure and returns true itself
    * in this case. false otherwise.
    */
-  template <typename ConcreteHistory>
-  bool eachSuccessor(std::function<bool(ConcreteHistory *successor,
+  bool eachSuccessor(std::function<bool(History<Symbol> *successor,
                                         size_t successorIndex)> doFn) {
     return eachSuffix([&doFn, this](Symbol &&suffix, size_t suffixIndex) {
       push(std::move(suffix));
-      auto concreteThis = static_cast<ConcreteHistory *>(this);
-      assert(concreteThis);
-      const bool shouldBreak = doFn(concreteThis, suffixIndex);
+      const bool shouldBreak = doFn(this, suffixIndex);
       pop();
-      if (shouldBreak) {
-        return true;
-      }
-      return false;
+      return shouldBreak;
     });
   }
 };

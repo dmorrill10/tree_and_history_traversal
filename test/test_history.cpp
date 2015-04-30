@@ -98,20 +98,22 @@ SCENARIO("Walking a string history") {
       size_t i = 0;
       REQUIRE(xStrings[i] == patient.toString());
       ++i;
-      patient.eachSuccessor<StringHistory>(
-          [&xStrings, &i, &xIndices](StringHistory *successor, size_t index) {
-            REQUIRE(xIndices[i] == index);
-            REQUIRE(xStrings[i] == successor->toString());
-            ++i;
-            successor->eachSuccessor<StringHistory>([&xStrings, &i, &xIndices](
-                StringHistory *nextSuccessor, size_t subIndex) {
-              REQUIRE(xIndices[i] == subIndex);
-              REQUIRE(xStrings[i] == nextSuccessor->toString());
-              ++i;
-              return false;
-            });
-            return false;
-          });
+      patient.eachSuccessor([&xStrings, &i, &xIndices](
+          History<std::string> *successor, size_t index) {
+        REQUIRE(xIndices[i] == index);
+        REQUIRE(xStrings[i] ==
+                static_cast<StringHistory *>(successor)->toString());
+        ++i;
+        successor->eachSuccessor([&xStrings, &i, &xIndices](
+            History<std::string> *nextSuccessor, size_t subIndex) {
+          REQUIRE(xIndices[i] == subIndex);
+          REQUIRE(xStrings[i] ==
+                  static_cast<StringHistory *>(nextSuccessor)->toString());
+          ++i;
+          return false;
+        });
+        return false;
+      });
     }
   }
 }
