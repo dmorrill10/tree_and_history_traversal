@@ -11,21 +11,35 @@ extern "C" {
 
 namespace TreeAndHistoryTraversal {
 namespace TreeNode {
-  template <typename Value>
+  template<typename Value>
   class TreeNode {
+  public:
+    using TerminalValueFunction = std::function<Value(const TreeNode<Value>* node)>;
+    using InteriorValueFunction = std::function<Value(const TreeNode<Value>* node)>;
   protected:
-    TreeNode() {}
+    TreeNode(TerminalValueFunction tvf, InteriorValueFunction ivf):terminalValueFunction_(tvf), interiorValueFunction_(ivf) {}
 
   public:
     virtual ~TreeNode() {}
     virtual bool isTerminal() const = 0;
-    virtual Value value() const = 0;
+    Value value() const {
+      if (isTerminal()) {
+        return terminalValueFunction_(this);
+      } else {
+        return interiorValueFunction_(this);
+      }
+      return Value();
+    }
+  protected:
+    TerminalValueFunction terminalValueFunction_;
+    InteriorValueFunction interiorValueFunction_;
   };
 
   template <typename Value>
   class TerminalNode : public TreeNode<Value> {
   protected:
-    TerminalNode():TreeNode<Value>::TreeNode() {}
+    TerminalNode(typename TreeNode<Value>::TerminalValueFunction tvf)
+    :TreeNode<Value>::TreeNode(tvf, [](const TreeNode<Value>*) { return Value(); }) {}
 
   public:
     virtual ~TerminalNode() {}
@@ -35,7 +49,7 @@ namespace TreeNode {
   template <typename Value>
   class InteriorNode : public TreeNode<Value> {
   protected:
-    InteriorNode():TreeNode<Value>::TreeNode() {}
+    InteriorNode(typename TreeNode<Value>::InteriorValueFunction ivf):TreeNode<Value>::TreeNode([](const TreeNode<Value>*) { return Value(); }, ivf) {}
 
   public:
     virtual ~InteriorNode() {}
@@ -45,49 +59,50 @@ namespace TreeNode {
   template <typename Value>
   class StoredTerminalNode : public TerminalNode<Value> {
   public:
-    StoredTerminalNode(Value&& value)
-    :TerminalNode<Value>::TerminalNode(), value_(value) {}
-    StoredTerminalNode(const Value& value)
-    :TerminalNode<Value>::TerminalNode(), value_(value) {}
+    StoredTerminalNode(Value value)
+    :TerminalNode<Value>::TerminalNode([value](const TreeNode<Value>*) {
+    // Move semantics could be used in a generalized lambda, but it's a C++14
+    // feature, so it's not necessary for these types used largely for testing
+//    :TerminalNode<Value>::TerminalNode([value = std::move(value)](const TreeNode<Value>*) {
+      return value;
+    }) {}
     virtual ~StoredTerminalNode() {}
-
-    virtual Value value() const { return value_; };
-  protected:
-    Value value_;
   };
 
   template <typename Value>
   class StoredInteriorNode : public InteriorNode<Value> {
   public:
     StoredInteriorNode(
-        std::function<Value(Value&& childValue)>&& f
-    ):InteriorNode<Value>::InteriorNode(),
-      combiner_(f) {};
+        std::function<Value(Value&& childValue)> f
+    ):InteriorNode<Value>::InteriorNode([f](const TreeNode<Value>* self) {
+    // Move semantics could be used in a generalized lambda, but it's a C++14
+    // feature, so it's not necessary for these types used largely for testing
+//    ):InteriorNode<Value>::InteriorNode([f = std::move(f)](const TreeNode<Value>* self) {
+      Value toReturn;
+      assert(static_cast<const StoredInteriorNode<Value>*>(self));
+      for (const auto child : static_cast<const StoredInteriorNode<Value>*>(self)->children_) {
+        assert(child);
+        toReturn = f(child->value());
+      }
+      return toReturn;
+    }) {};
     StoredInteriorNode(
         std::vector<TreeNode<Value>*>&& children,
         std::function<Value(Value&& childValue)>&& f
-    ):InteriorNode<Value>::InteriorNode(),
-      children_(children),
-      combiner_(f) {};
+    ):StoredInteriorNode::StoredInteriorNode(f) {
+      children_ = children;
+    };
     StoredInteriorNode(
         const std::vector<TreeNode<Value>*>& children,
         std::function<Value(Value&& childValue)>&& f
-    ):InteriorNode<Value>::InteriorNode(),
-      children_(children),
-      combiner_(f) {};
+    ):StoredInteriorNode::StoredInteriorNode(f) {
+      children_ = children;
+    };
     virtual ~StoredInteriorNode() {
       for (auto child : children_) {
         Utilities::Memory::deletePointer(child);
       }
     };
-
-    virtual Value value() const {
-      Value toReturn;
-      for (const auto child : children_) {
-        toReturn = combiner_(child->value());
-      }
-      return toReturn;
-    }
 
     virtual void addChild(TreeNode<Value>* newChild) {
       children_.emplace_back(newChild);
@@ -109,7 +124,6 @@ namespace TreeNode {
 
   protected:
     std::vector<TreeNode<Value>*> children_;
-    std::function<Value(Value&& childValue)> combiner_;
   };
 }
 }
