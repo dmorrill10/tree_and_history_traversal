@@ -17,8 +17,10 @@ namespace HistoryTreeNode {
 template <typename Value, typename Symbol>
 class HistoryTreeNode : public TreeNode::TreeNode<Value> {
 protected:
-  HistoryTreeNode(History::History<Symbol> *&&history)
-      : TreeNode::TreeNode<Value>::TreeNode(), history_(history) {
+  HistoryTreeNode(History::History<Symbol> *&&history,
+                  typename TreeNode::TreeNode<Value>::TerminalValueFunction tvf,
+                  typename TreeNode::TreeNode<Value>::InteriorValueFunction ivf)
+      : TreeNode::TreeNode<Value>::TreeNode(tvf, ivf), history_(history) {
     assert(history_);
   }
 
