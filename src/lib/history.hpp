@@ -35,6 +35,14 @@ public:
   virtual Symbol last() const = 0;
   virtual bool isEmpty() const = 0;
   virtual bool hasSuccessors() const = 0;
+  virtual size_t numSuccessors() const {
+    size_t n = 0;
+    eachSuffix([this, &n](Symbol &&, size_t) {
+      ++n;
+      return false;
+    });
+    return n;
+  }
 
   /**
    * Breaks when true is returned from the closure and returns true itself
