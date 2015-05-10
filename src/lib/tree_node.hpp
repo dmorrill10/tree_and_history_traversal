@@ -17,80 +17,63 @@ public:
   using InteriorValueFunction = std::function<Value()>;
 
 protected:
-  TreeNode(TerminalValueFunction tvf, InteriorValueFunction ivf)
-      : terminalValueFunction_(tvf), interiorValueFunction_(ivf) {}
+  TreeNode() {}
 
 public:
   virtual ~TreeNode() {}
   virtual bool isTerminal() const = 0;
-  Value value() const {
-    if (isTerminal()) {
-      return terminalValueFunction_();
-    } else {
-      return interiorValueFunction_();
-    }
-    return Value();
+  Value value() {
+    return isTerminal() ? terminalValueFunction() : interiorValueFunction();
   }
 
 protected:
-  TerminalValueFunction terminalValueFunction_;
-  InteriorValueFunction interiorValueFunction_;
+  virtual Value terminalValueFunction() = 0;
+  virtual Value interiorValueFunction() = 0;
 };
 
 template <typename Value> class TerminalNode : public TreeNode<Value> {
 protected:
-  TerminalNode(typename TreeNode<Value>::TerminalValueFunction tvf)
-      : TreeNode<Value>::TreeNode(tvf, []() { return Value(); }) {}
+  TerminalNode() : TreeNode<Value>::TreeNode() {}
 
 public:
   virtual ~TerminalNode() {}
   virtual bool isTerminal() const { return true; }
+
+protected:
+  virtual Value interiorValueFunction() override final { return Value(); }
 };
 
 template <typename Value> class InteriorNode : public TreeNode<Value> {
 protected:
-  InteriorNode(typename TreeNode<Value>::InteriorValueFunction ivf)
-      : TreeNode<Value>::TreeNode([]() { return Value(); }, ivf) {}
+  InteriorNode() : TreeNode<Value>::TreeNode() {}
 
 public:
   virtual ~InteriorNode() {}
   virtual bool isTerminal() const { return false; }
+
+protected:
+  virtual Value terminalValueFunction() override final { return Value(); }
 };
 
 template <typename Value>
 class StoredTerminalNode : public TerminalNode<Value> {
 public:
   StoredTerminalNode(Value value)
-      : TerminalNode<Value>::TerminalNode([value]() {
-          // Move semantics could be used in a generalized lambda, but it's a
-          // C++14
-          // feature, so it's not necessary for these types used largely for
-          // testing
-          //    :TerminalNode<Value>::TerminalNode([value =
-          //    std::move(value)](const TreeNode<Value>*) {
-          return value;
-        }) {}
+      : TerminalNode<Value>::TerminalNode(), value_(value) {}
   virtual ~StoredTerminalNode() {}
+
+protected:
+  virtual Value terminalValueFunction() override final { return value_; }
+
+protected:
+  Value value_;
 };
 
 template <typename Value>
 class StoredInteriorNode : public InteriorNode<Value> {
 public:
   StoredInteriorNode(std::function<Value(Value &&childValue)> f)
-      : InteriorNode<Value>::InteriorNode([f, this]() {
-          // Move semantics could be used in a generalized lambda, but it's a
-          // C++14
-          // feature, so it's not necessary for these types used largely for
-          // testing
-          //    ):InteriorNode<Value>::InteriorNode([f = std::move(f)](const
-          //    TreeNode<Value>* self) {
-          Value toReturn;
-          for (const auto child : this->children_) {
-            assert(child);
-            toReturn = f(child->value());
-          }
-          return toReturn;
-        }){};
+      : InteriorNode<Value>::InteriorNode(), f_(f){};
   StoredInteriorNode(std::vector<TreeNode<Value> *> &&children,
                      std::function<Value(Value &&childValue)> &&f)
       : StoredInteriorNode::StoredInteriorNode(f) {
@@ -126,7 +109,18 @@ public:
   }
 
 protected:
+  virtual Value interiorValueFunction() override final {
+    Value toReturn;
+    for (const auto child : children_) {
+      assert(child);
+      toReturn = f_(child->value());
+    }
+    return toReturn;
+  }
+
+protected:
   std::vector<TreeNode<Value> *> children_;
+  std::function<Value(Value &&childValue)> f_;
 };
 }
 }

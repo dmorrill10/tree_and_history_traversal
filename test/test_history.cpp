@@ -14,11 +14,29 @@ extern "C" {
 using namespace TreeAndHistoryTraversal;
 using namespace History;
 
+class TestStringHistory : public StringHistory {
+public:
+  TestStringHistory(std::vector<std::string> &&allLegalStrings,
+                    std::function<bool(const TestStringHistory &h,
+                                       const std::string &candidate)> &&isLegal)
+      : StringHistory::StringHistory(std::move(allLegalStrings)),
+        isLegal_(isLegal) {}
+  virtual ~TestStringHistory() {}
+
+  virtual bool suffixIsLegal(const std::string &candidate) const override {
+    return isLegal_(*this, candidate);
+  }
+
+protected:
+  std::function<bool(const TestStringHistory &h, const std::string &candidate)>
+      isLegal_;
+};
+
 SCENARIO("Walking a string history") {
   GIVEN("A set of legal characters and legal suffix check") {
-    StringHistory patient({"a", "b", "c"},
-                          [](const StringHistory &prefix,
-                             const std::string &candidate) { return true; });
+    TestStringHistory patient(
+        {"a", "b", "c"},
+        [](const TestStringHistory &, const std::string &) { return true; });
     REQUIRE(patient.isEmpty());
     REQUIRE(patient.hasSuccessors());
     REQUIRE("" == patient.toString());
@@ -46,11 +64,13 @@ SCENARIO("Walking a string history") {
     }
   }
   GIVEN("A set of legal characters and more complicated legal suffix check") {
-    StringHistory patient({"a", "b", "c"}, [](const StringHistory &prefix,
-                                              const std::string &candidate) {
-      return (prefix.isEmpty() || (prefix.last() == "b" && candidate == "c") ||
-              (prefix.last() == "a" || prefix.last() == "c"));
-    });
+    TestStringHistory patient(
+        {"a", "b", "c"},
+        [](const TestStringHistory &prefix, const std::string &candidate) {
+          return (prefix.isEmpty() ||
+                  (prefix.last() == "b" && candidate == "c") ||
+                  (prefix.last() == "a" || prefix.last() == "c"));
+        });
     REQUIRE(patient.isEmpty());
     REQUIRE(patient.hasSuccessors());
     REQUIRE("" == patient.toString());
@@ -98,22 +118,20 @@ SCENARIO("Walking a string history") {
       size_t i = 0;
       REQUIRE(xStrings[i] == patient.toString());
       ++i;
-      patient.eachSuccessor([&xStrings, &i, &xIndices](
-          History<std::string> *successor, size_t index) {
-        REQUIRE(xIndices[i] == index);
-        REQUIRE(xStrings[i] ==
-                static_cast<StringHistory *>(successor)->toString());
-        ++i;
-        successor->eachSuccessor([&xStrings, &i, &xIndices](
-            History<std::string> *nextSuccessor, size_t subIndex) {
-          REQUIRE(xIndices[i] == subIndex);
-          REQUIRE(xStrings[i] ==
-                  static_cast<StringHistory *>(nextSuccessor)->toString());
-          ++i;
-          return false;
-        });
-        return false;
-      });
+      patient.eachSuccessor(
+          [&patient, &xStrings, &i, &xIndices](size_t index, size_t) {
+            REQUIRE(xIndices[i] == index);
+            REQUIRE(xStrings[i] == patient.toString());
+            ++i;
+            patient.eachSuccessor(
+                [&patient, &xStrings, &i, &xIndices](size_t subIndex, size_t) {
+                  REQUIRE(xIndices[i] == subIndex);
+                  REQUIRE(xStrings[i] == patient.toString());
+                  ++i;
+                  return false;
+                });
+            return false;
+          });
     }
   }
 }

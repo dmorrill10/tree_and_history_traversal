@@ -29,6 +29,19 @@ public:
    */
   virtual bool eachSuffix(
       std::function<bool(Symbol &&suffix, size_t suffixIndex)> doFn) const = 0;
+  virtual bool
+  eachLegalSuffix(std::function<bool(Symbol &&suffix, size_t suffixIndex,
+                                     size_t legalSuffixIndex)> doFn) const {
+    size_t legalIndex = 0;
+    return eachSuffix([this, &legalIndex, &doFn](Symbol &&suffix, size_t i) {
+      bool val = false;
+      if (suffixIsLegal(suffix)) {
+        val = doFn(std::move(suffix), i, legalIndex);
+        ++legalIndex;
+      }
+      return val;
+    });
+  }
   virtual void push(Symbol suffix) = 0;
   virtual void pop() = 0;
   virtual bool suffixIsLegal(const Symbol &candidate) const = 0;
@@ -36,8 +49,11 @@ public:
   virtual bool isEmpty() const = 0;
   virtual bool hasSuccessors() const = 0;
   virtual size_t numSuccessors() const {
+    if (!hasSuccessors()) {
+      return 0;
+    }
     size_t n = 0;
-    eachSuffix([this, &n](Symbol &&, size_t) {
+    eachLegalSuffix([this, &n](Symbol &&, size_t, size_t) {
       ++n;
       return false;
     });
@@ -48,11 +64,12 @@ public:
    * Breaks when true is returned from the closure and returns true itself
    * in this case. false otherwise.
    */
-  bool eachSuccessor(std::function<bool(History<Symbol> *successor,
-                                        size_t successorIndex)> doFn) {
-    return eachSuffix([&doFn, this](Symbol &&suffix, size_t suffixIndex) {
+  bool eachSuccessor(std::function<bool(size_t successorIndex,
+                                        size_t legalSuffixIndex)> doFn) {
+    return eachLegalSuffix([&doFn, this](Symbol &&suffix, size_t suffixIndex,
+                                         size_t legalSuffixIndex) {
       push(std::move(suffix));
-      const bool shouldBreak = doFn(this, suffixIndex);
+      const bool shouldBreak = doFn(suffixIndex, legalSuffixIndex);
       pop();
       return shouldBreak;
     });
@@ -60,13 +77,11 @@ public:
 };
 
 class StringHistory : public History<std::string> {
+protected:
+  StringHistory(std::vector<std::string> &&allLegalStrings)
+      : state_(), allLegalStrings_(allLegalStrings) {}
+
 public:
-  StringHistory(
-      std::vector<std::string> &&allLegalStrings,
-      std::function<bool(const StringHistory &prefix,
-                         const std::string &candidateString)> &&isLegalSuffix)
-      : state_(), allLegalStrings_(allLegalStrings),
-        suffixIsLegal_(isLegalSuffix) {}
   virtual ~StringHistory() {}
 
   virtual bool
@@ -93,9 +108,6 @@ public:
     state_.emplace_back(suffix);
   }
   virtual void pop() { state_.pop_back(); }
-  virtual bool suffixIsLegal(const std::string &candidate) const {
-    return suffixIsLegal_((*this), candidate);
-  }
   virtual std::string last() const { return isEmpty() ? "" : state_.back(); }
   virtual bool isEmpty() const { return state_.empty(); }
   virtual bool hasSuccessors() const {
@@ -121,8 +133,6 @@ public:
 protected:
   std::vector<std::string> state_;
   std::vector<std::string> allLegalStrings_;
-  std::function<bool(const StringHistory &prefix,
-                     const std::string &candidateString)> suffixIsLegal_;
 };
 }
 }
