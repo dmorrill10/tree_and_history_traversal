@@ -22,7 +22,9 @@ protected:
 public:
   virtual ~TreeNode() {}
   virtual bool isTerminal() const = 0;
-  Value value() { return isTerminal() ? terminalValue() : interiorValue(); }
+  virtual Value value() {
+    return isTerminal() ? terminalValue() : interiorValue();
+  }
 
 protected:
   virtual Value terminalValue() = 0;
