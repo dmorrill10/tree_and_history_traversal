@@ -136,7 +136,7 @@ public:
   virtual ~PerturbedRegretMatchingTable() {}
 
   virtual void update(const std::pair<size_t, size_t>& sequence, Numeric regretValue) override {
-    const auto noiseSign = flipCoin(0.5, &randomEngine_) ? 1 : -1;
+    const int noiseSign = flipCoin(0.5, &randomEngine_) ? 1 : -1;
     const auto infoSet = sequence.first;
     const auto action = sequence.second;
     const auto index = (*numSequencesBeforeEachInfoSet_)[infoSet] + action;
@@ -421,7 +421,7 @@ SCENARIO("CFR on matching pennies") {
           policyGeneratorProfileFactory()
       );
       patient.doIterations(1000);
-      CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.01));
+      CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.001));
     }
   }
@@ -435,8 +435,8 @@ SCENARIO("CFR on matching pennies") {
           policyGeneratorProfileFactory()
       );
       patient.doIterations(1000);
-      CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.01));
-      CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.01));
+      CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.001));
+      CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
     }
   }
   GIVEN("Alternative terminal values #3") {
@@ -449,7 +449,7 @@ SCENARIO("CFR on matching pennies") {
           policyGeneratorProfileFactory()
       );
       patient.doIterations(1000);
-      CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.01));
+      CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.01));
     }
   }
@@ -471,9 +471,9 @@ SCENARIO("perturbed CFR on matching pennies") {
           utilsForPlayer1,
           policyGeneratorProfileFactory()
       );
-      patient.doIterations(100);
-      CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.01));
-      CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.1));
+      patient.doIterations(5000);
+      CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
+      CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
     }
   }
   GIVEN("Alternative terminal values #1") {
@@ -485,9 +485,9 @@ SCENARIO("perturbed CFR on matching pennies") {
           utilsForPlayer1,
           policyGeneratorProfileFactory()
       );
-      patient.doIterations(100);
-      CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.1));
-      CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.1));
+      patient.doIterations(1000);
+      CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
+      CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.001));
     }
   }
   GIVEN("Alternative terminal values #2") {
@@ -499,9 +499,9 @@ SCENARIO("perturbed CFR on matching pennies") {
           utilsForPlayer1,
           policyGeneratorProfileFactory()
       );
-      patient.doIterations(100);
-      CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.1));
-      CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.1));
+      patient.doIterations(5000);
+      CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.001));
+      CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
     }
   }
   GIVEN("Alternative terminal values #3") {
@@ -513,9 +513,26 @@ SCENARIO("perturbed CFR on matching pennies") {
           utilsForPlayer1,
           policyGeneratorProfileFactory()
       );
-      patient.doIterations(100);
-      CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.1));
-      CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.1));
+      patient.doIterations(1000);
+      CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.001));
+      CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.01));
     }
+//    GIVEN("Very noisy regret updaters") {
+//      THEN("CFR finds the equilibrium properly") {
+//        const auto altPolicyGeneratorProfileFactory = [&]() {
+//          return std::vector<PolicyGenerator<size_t,std::pair<size_t,size_t>,Numeric>*>{
+//            new PerturbedRegretMatchingTable(numSequences, numActionsAtEachInfoSet, numSequencesBeforeEachInfoSet, 100),
+//                new PerturbedRegretMatchingTable(numSequences, numActionsAtEachInfoSet, numSequencesBeforeEachInfoSet, 100)
+//          };
+//        };
+//        CfrForMatchingPennies<size_t,std::pair<size_t,size_t>,Numeric> patient(
+//            utilsForPlayer1,
+//            altPolicyGeneratorProfileFactory()
+//        );
+//        patient.doIterations(10000000);
+//        CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.01));
+//        CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.01));
+//      }
+//    }
   }
 }
