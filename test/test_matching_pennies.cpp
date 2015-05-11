@@ -18,32 +18,138 @@ using namespace TreeAndHistoryTraversal;
 using namespace HistoryTreeNode;
 using namespace History;
 
+
+template <typename T>
+T copyAndReturnAfter(T valueToSaveAndRestore, std::function<void()> doFn) {
+  doFn();
+  return valueToSaveAndRestore;
+}
+
+template <typename Numeric>
+static std::vector<Numeric> regretMatching(std::vector<Numeric> regrets) {
+  std::vector<Numeric> probs(regrets.size(), 1.0 / regrets.size());
+  Numeric sum = 0.0;
+  for (auto r : regrets) {
+    sum += r > 0.0 ? r : 0.0;
+  }
+  if (sum > 0.0) {
+    for (size_t rIndex = 0; rIndex < regrets.size(); ++rIndex) {
+      probs[rIndex] =
+          regrets[rIndex] > 0.0 ? exp(log(regrets[rIndex]) - log(sum)) : 0.0;
+    }
+  }
+  return probs;
+}
+template <typename Numeric>
+static std::vector<Numeric> normalized(const std::vector<Numeric> &v) {
+  Numeric sum = 0.0;
+  std::vector<Numeric> n(v.size(), 1.0 / v.size());
+  for (auto elem : v) {
+    sum += elem;
+  }
+  if (sum > 0) {
+    for (size_t i = 0; i < v.size(); ++i) {
+      n[i] = v[i] > 0.0 ? exp(log(v[i]) - log(sum)) : 0.0;
+    }
+  }
+  return n;
+}
+
+#include <random>
+static bool flipCoin(double probTrue, std::mt19937 *randomEngine) {
+  assert(randomEngine);
+  std::bernoulli_distribution coin(probTrue);
+  return coin(*randomEngine);
+}
+
+template <typename InformationSet, typename Sequence, typename Regret>
+class PolicyGenerator {
+protected:
+  PolicyGenerator() {}
+public:
+  virtual ~PolicyGenerator() {}
+
+  virtual std::vector<double> policy(const InformationSet& I) const = 0;
+  virtual void update(const Sequence& sequence, Regret regretValue) = 0;
+};
+
 typedef double Numeric;
 
-class GameInformation {
-protected:
-  GameInformation() {}
-
+class RegretTable : public PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric> {
 public:
-  virtual ~GameInformation() {}
+  RegretTable(
+      size_t numSequences,
+      const std::vector<size_t>& numActionsAtEachInfoSet,
+      const std::vector<size_t>& numSequencesBeforeEachInfoSet
+  ):table_(numSequences, 0.0), numActionsAtEachInfoSet_(&numActionsAtEachInfoSet), numSequencesBeforeEachInfoSet_(&numSequencesBeforeEachInfoSet) {}
+  virtual ~RegretTable() {}
 
-  virtual size_t numPlayers() const = 0;
-  virtual size_t numSequences(size_t player) const = 0;
-  virtual size_t numInfoSets(size_t player) const = 0;
-  virtual size_t numActions(size_t player, size_t infoSetIndex) const = 0;
+  virtual std::vector<Numeric> policy(const size_t& I) const override {
+    Numeric sum = 0.0;
+    const auto numActions = (*numActionsAtEachInfoSet_)[I];
+    const auto baseIndex = (*numSequencesBeforeEachInfoSet_)[I];
+
+    std::vector<Numeric> policy_(numActions);
+    for (size_t i = 0; i < numActions; ++i) {
+      sum += table_[baseIndex + i] > 0.0 ? table_[baseIndex + i] : 0.0;
+      policy_[i] = 1.0 / numActions;
+    }
+    if (sum > 0) {
+      for (size_t i = 0; i < numActions; ++i) {
+        policy_[i] = table_[baseIndex + i] > 0.0 ? exp(log(table_[baseIndex + i]) - log(sum)) : 0.0;
+      }
+    }
+
+    return policy_;
+  }
+protected:
+  std::vector<Numeric> table_;
+  const std::vector<size_t>* numActionsAtEachInfoSet_;
+  const std::vector<size_t>* numSequencesBeforeEachInfoSet_;
 };
 
-namespace MatchingPennies {
-
-class MatchingPenniesInformation : public GameInformation {
+class RegretMatchingTable : public RegretTable {
 public:
-  virtual size_t numPlayers() const { return 2; }
-  virtual size_t numSequences(size_t /*player*/) const { return 2; }
-  virtual size_t numInfoSets(size_t /*player*/) const { return 1; }
-  virtual size_t numActions(size_t /*player*/, size_t /*infoSetIndex*/) const {
-    return 2;
+  RegretMatchingTable(
+      size_t numSequences,
+      const std::vector<size_t>& numActionsAtEachInfoSet,
+      const std::vector<size_t>& numSequencesBeforeEachInfoSet
+  ):RegretTable::RegretTable(numSequences, numActionsAtEachInfoSet, numSequencesBeforeEachInfoSet) {}
+  virtual ~RegretMatchingTable() {}
+
+  virtual void update(const std::pair<size_t, size_t>& sequence, Numeric regretValue) override {
+    const auto infoSet = sequence.first;
+    const auto action = sequence.second;
+    const auto index = (*numSequencesBeforeEachInfoSet_)[infoSet] + action;
+    table_[index] += regretValue;
   }
 };
+
+class PerturbedRegretMatchingTable : public RegretTable {
+public:
+  PerturbedRegretMatchingTable(
+      size_t numSequences,
+      const std::vector<size_t>& numActionsAtEachInfoSet,
+      const std::vector<size_t>& numSequencesBeforeEachInfoSet,
+      double noise
+  ):RegretTable::RegretTable(numSequences, numActionsAtEachInfoSet, numSequencesBeforeEachInfoSet), randomEngine_(63547654), noise_(noise) {}
+  virtual ~PerturbedRegretMatchingTable() {}
+
+  virtual void update(const std::pair<size_t, size_t>& sequence, Numeric regretValue) override {
+    const auto noiseSign = flipCoin(0.5, &randomEngine_) ? 1 : -1;
+    const auto infoSet = sequence.first;
+    const auto action = sequence.second;
+    const auto index = (*numSequencesBeforeEachInfoSet_)[infoSet] + action;
+    table_[index] += regretValue + noiseSign * noise_;
+  }
+
+protected:
+  std::mt19937 randomEngine_;
+  const double noise_;
+};
+
+
+namespace MatchingPennies {
 
 class MatchingPenniesHistory : public StringHistory {
 public:
@@ -62,6 +168,12 @@ public:
   virtual size_t lastActor() const {
     return last() == "l" || last() == "r" ? 0 : 1;
   }
+  virtual std::string action(size_t player) const {
+    return state_[player];
+  }
+  virtual size_t legalActionIndex(size_t player) const {
+    return ((action(player) == "l" || action(player) == "L") ? 0 : 1);
+  }
 };
 
 class MatchingPennies : public HistoryTreeNode<Numeric, std::string> {
@@ -75,13 +187,13 @@ public:
   virtual ~MatchingPennies() {}
 
 protected:
-  virtual Numeric terminalValueFunction() override {
+  virtual Numeric terminalValue() override {
     return utilsForPlayer1_.at(
         static_cast<const StringHistory *>(history())->toString());
   }
-  virtual Numeric interiorValueFunction() override {
+  virtual Numeric interiorValue() override {
     Numeric ev = 0.0;
-    history_->eachSuccessor([this, &ev](size_t, size_t legalSuccessorIndex) {
+    history_->eachSuccessor([&](size_t, size_t legalSuccessorIndex) {
       const auto actor =
           static_cast<const MatchingPenniesHistory *>(history())->lastActor();
       const auto probAction =
@@ -97,70 +209,27 @@ protected:
   std::unordered_map<std::string, int> utilsForPlayer1_;
 };
 
-class CfrForMatchingPennies : public HistoryTreeNode<Numeric, std::string> {
+template <typename InformationSet, typename Sequence, typename Regret>
+class CfrForMatchingPennies : public HistoryTreeNode<std::vector<Numeric>, std::string> {
 public:
-  static std::vector<Numeric> regretMatching(std::vector<Numeric> regrets) {
-    std::vector<Numeric> probs(regrets.size(), 1.0 / regrets.size());
-    Numeric sum = 0.0;
-    for (auto r : regrets) {
-      sum += r > 0.0 ? r : 0.0;
-    }
-    if (sum > 0.0) {
-      DEBUG_VARIABLE("%lg", sum);
-      for (size_t rIndex = 0; rIndex < regrets.size(); ++rIndex) {
-        DEBUG_VARIABLE("%lg", regrets[rIndex]);
-        probs[rIndex] =
-            regrets[rIndex] > 0.0 ? exp(log(regrets[rIndex]) - log(sum)) : 0.0;
-        DEBUG_VARIABLE("%lg", probs[rIndex]);
-      }
-    }
-    return probs;
-  }
-  static std::vector<Numeric> normalized(const std::vector<Numeric> &v) {
-    Numeric sum = 0.0;
-    std::vector<Numeric> n(v.size(), 1.0 / v.size());
-    for (auto elem : v) {
-      DEBUG_VARIABLE("%lg", elem);
-      sum += elem;
-      DEBUG_VARIABLE("%lg", sum);
-    }
-    if (sum > 0) {
-      DEBUG_VARIABLE("%lg", sum);
-      for (size_t i = 0; i < v.size(); ++i) {
-        n[i] = v[i] > 0.0 ? exp(log(v[i]) - log(sum)) : 0.0;
-        DEBUG_VARIABLE("%lg", n[i]);
-      }
-    }
-    return n;
-  }
-  CfrForMatchingPennies(
-      const std::unordered_map<std::string, int> &utilsForPlayer1)
-      : HistoryTreeNode<Numeric, std::string>::HistoryTreeNode(
+  CfrForMatchingPennies(const std::vector<std::vector<int>> &utilsForPlayer1, std::vector<PolicyGenerator<InformationSet,Sequence,Regret>*>&& policyGeneratorProfile)
+      : HistoryTreeNode<std::vector<Numeric>, std::string>::HistoryTreeNode(
             static_cast<History<std::string> *>(new MatchingPenniesHistory())),
-        piSigma_({1.0, 1.0}), regretProfile_({{0, 0}, {0, 0}}),
-        regretDataProfile_({{0, 0}, {0, 0}}),
+        reachProbProfile_({{1.0, 1.0}, {1.0, 1.0}}),
+        policyGeneratorProfile_(std::move(policyGeneratorProfile)),
         cumulativeAverageStrategyProfile_({{0, 0}, {0, 0}}),
         utilsForPlayer1_(utilsForPlayer1), i_(0) {}
-  virtual ~CfrForMatchingPennies() {}
+  virtual ~CfrForMatchingPennies() {
+    for (auto& policyGenerator : policyGeneratorProfile_) {
+      if (policyGenerator) {
+        delete policyGenerator;
+      }
+    }
+  }
 
   virtual void doIterations(size_t numIterations) {
     for (size_t t = 0; t < numIterations; ++t) {
-      DEBUG_HEADER2("");
       value();
-      for (size_t j = 0; j < regretDataProfile_[i_].size(); ++j) {
-        regretProfile_[i_][j] += regretDataProfile_[i_][j];
-        regretDataProfile_[i_][j] = 0.0;
-      }
-      DEBUG_VARIABLE("%zu", t);
-      DEBUG_VARIABLE("%zu", i_);
-      DEBUG_VARIABLE("%lg", regretProfile_[0][0]);
-      DEBUG_VARIABLE("%lg", regretProfile_[0][1]);
-      DEBUG_VARIABLE("%lg", regretProfile_[1][0]);
-      DEBUG_VARIABLE("%lg", regretProfile_[1][1]);
-      DEBUG_VARIABLE("%lg", cumulativeAverageStrategyProfile_[0][0]);
-      DEBUG_VARIABLE("%lg", cumulativeAverageStrategyProfile_[0][1]);
-      DEBUG_VARIABLE("%lg", cumulativeAverageStrategyProfile_[1][0]);
-      DEBUG_VARIABLE("%lg", cumulativeAverageStrategyProfile_[1][1]);
       i_ = (i_ + 1) % cumulativeAverageStrategyProfile_.size();
     }
   }
@@ -169,152 +238,107 @@ public:
     std::vector<std::vector<Numeric>> s;
     s.reserve(cumulativeAverageStrategyProfile_.size());
     for (const auto &elem : cumulativeAverageStrategyProfile_) {
-      DEBUG_VARIABLE("%lg", elem[0]);
-      DEBUG_VARIABLE("%lg", elem[1]);
       s.push_back(normalized(elem));
     }
     return s;
   }
 
 protected:
-  virtual Numeric terminalValueFunction() override {
-    const auto not_i = (i_ + 1) % cumulativeAverageStrategyProfile_.size();
-    return (
-        (piSigma_[not_i] > 0.0)
-            ? (piSigma_[not_i] *
-               utilsForPlayer1_.at(
-                   static_cast<const StringHistory *>(history())->toString()) *
-               (i_ == 0 ? 1 : -1))
-            : 0.0);
+  virtual std::vector<Numeric> terminalValue() override {
+    int sign = 1;
+    size_t not_i = 1;
+    const auto myChoice = static_cast<const MatchingPenniesHistory *>(history())->legalActionIndex(i_);
+    std::function<Numeric(size_t)> u = [this, &myChoice](size_t opponentChoice) {
+      return utilsForPlayer1_.at(myChoice).at(opponentChoice);
+    };
+    if (i_ == 1) {
+      sign = -1;
+      not_i = 0;
+      u = [this, &myChoice](size_t opponentChoice) {
+        return utilsForPlayer1_.at(opponentChoice).at(myChoice);
+      };
+    }
+    std::vector<Numeric> values(reachProbProfile_[not_i].size());
+    for (size_t opponentChoice = 0; opponentChoice < reachProbProfile_[not_i].size(); ++opponentChoice) {
+      if (reachProbProfile_[not_i][opponentChoice] > 0.0) {
+        values[opponentChoice] = (
+            sign * reachProbProfile_[not_i][opponentChoice] * u(opponentChoice)
+        );
+      }
+    }
+    return values;
   }
-  virtual Numeric interiorValueFunction() override {
+  virtual std::vector<Numeric> interiorValue() override {
     const auto actor =
         static_cast<const MatchingPenniesHistory *>(history())->actor();
-    const auto sigma_I = regretMatching(regretProfile_[actor]);
-    Numeric counterfactualValue = 0.0;
-    if (actor != i_) {
-      history_->eachSuccessor([this, &actor, &counterfactualValue, &sigma_I](
-          size_t, size_t legalSuccessorIndex) {
-        const auto savedPiSigma = piSigma_[actor];
+    const auto sigma_I = policyGeneratorProfile_[actor]->policy(0);
+    return (actor != i_) ? opponentValue(actor, sigma_I)
+                         : myValue(actor, sigma_I);
+  }
+
+  virtual std::vector<Numeric> opponentValue(size_t actor,
+                                const std::vector<Numeric> &sigma_I) {
+    std::vector<Numeric> counterfactualValue;
+    reachProbProfile_[actor] = copyAndReturnAfter(reachProbProfile_[actor], [&]() {
+      history_->eachSuccessor([&](size_t, size_t legalSuccessorIndex) {
         if (sigma_I[legalSuccessorIndex] > 0.0) {
-          piSigma_[actor] =
-              exp(log(piSigma_[actor]) + log(sigma_I[legalSuccessorIndex]));
+          reachProbProfile_[actor][legalSuccessorIndex] =
+              exp(log(reachProbProfile_[actor][legalSuccessorIndex]) + log(sigma_I[legalSuccessorIndex]));
           cumulativeAverageStrategyProfile_[actor][legalSuccessorIndex] +=
-              piSigma_[actor];
+              reachProbProfile_[actor][legalSuccessorIndex];
         } else {
-          piSigma_[actor] = 0.0;
+          reachProbProfile_[actor][legalSuccessorIndex] = 0.0;
         }
-        counterfactualValue += value();
-        piSigma_[actor] = savedPiSigma;
+        if (legalSuccessorIndex == (sigma_I.size() - 1)) {
+          counterfactualValue = value();
+        }
         return false;
       });
-    } else {
-      std::vector<Numeric> actionVals(sigma_I.size());
-      history_->eachSuccessor(
-          [this, &actor, &counterfactualValue, &actionVals, &sigma_I](
-              size_t, size_t legalSuccessorIndex) {
-            const auto savedPiSigma = piSigma_[actor];
-            if (sigma_I[legalSuccessorIndex] > 0.0) {
-              piSigma_[actor] =
-                  exp(log(piSigma_[actor]) + log(sigma_I[legalSuccessorIndex]));
-            } else {
-              piSigma_[actor] = 0.0;
-            }
-            actionVals[legalSuccessorIndex] = value();
-            DEBUG_VARIABLE("%lg", actionVals.back());
-            DEBUG_VARIABLE("%lg", sigma_I[legalSuccessorIndex]);
-            counterfactualValue +=
-                actionVals.back() * sigma_I[legalSuccessorIndex];
-            piSigma_[actor] = savedPiSigma;
-            return false;
-          });
-      history_->eachLegalSuffix(
-          [this, &actor, &counterfactualValue, &actionVals](
-              std::string, size_t, size_t legalSuccessorIndex) {
-        DEBUG_VARIABLE("%zu", actor);
-        DEBUG_VARIABLE("%zu", legalSuccessorIndex);
-        DEBUG_VARIABLE("%lg", actionVals[legalSuccessorIndex]);
-        DEBUG_VARIABLE("%lg", counterfactualValue);
-            regretDataProfile_[actor][legalSuccessorIndex] +=
-                actionVals[legalSuccessorIndex] - counterfactualValue;
-            DEBUG_VARIABLE("%lg", regretDataProfile_[actor][legalSuccessorIndex]);
-            return false;
-          });
-    }
+    });
+    return counterfactualValue;
+  }
+
+  virtual std::vector<Numeric> myValue(size_t actor, const std::vector<Numeric> &sigma_I) {
+    std::vector<Numeric> actionVals(sigma_I.size(), 0.0);
+    std::vector<Numeric> counterfactualValue(sigma_I.size(), 0.0);
+    reachProbProfile_[actor] = copyAndReturnAfter(reachProbProfile_[actor], [&]() {
+      history_->eachSuccessor([&](size_t, size_t legalSuccessorIndex) {
+        if (sigma_I[legalSuccessorIndex] > 0.0) {
+          reachProbProfile_[actor][legalSuccessorIndex] =
+              exp(log(reachProbProfile_[actor][legalSuccessorIndex]) + log(sigma_I[legalSuccessorIndex]));
+        } else {
+          reachProbProfile_[actor][legalSuccessorIndex] = 0.0;
+        }
+        const std::vector<Numeric> valsForAllOpponentChoices = value();
+        for (size_t i = 0; i < valsForAllOpponentChoices.size(); ++i) {
+          actionVals[legalSuccessorIndex] += valsForAllOpponentChoices[i];
+          counterfactualValue[i] += valsForAllOpponentChoices[i] * sigma_I[legalSuccessorIndex];
+        }
+        return false;
+      });
+    });
+    history_->eachLegalSuffix(
+        [&](std::string, size_t, size_t legalSuccessorIndex) {
+          for (auto cfvForOpponentChoice : counterfactualValue) {
+            policyGeneratorProfile_[actor]->update(std::make_pair(0, legalSuccessorIndex), actionVals[legalSuccessorIndex] - cfvForOpponentChoice);
+          }
+          return false;
+        });
     return counterfactualValue;
   }
 
 protected:
   // Player / action
-  std::vector<double> piSigma_;
-  std::vector<std::vector<Numeric>> regretProfile_;
-  std::vector<std::vector<Numeric>> regretDataProfile_;
+  std::vector<std::vector<Numeric>> reachProbProfile_;
+  std::vector<PolicyGenerator<InformationSet,Sequence,Regret>*> policyGeneratorProfile_;
   std::vector<std::vector<Numeric>> cumulativeAverageStrategyProfile_;
-  std::unordered_map<std::string, int> utilsForPlayer1_;
+  const std::vector<std::vector<int>> utilsForPlayer1_;
   size_t i_;
 };
 
-#include <random>
-
-class PerturbedCfrForMatchingPennies : public CfrForMatchingPennies {
-public:
-  static bool flipCoin(double probTrue, std::mt19937 *randomEngine) {
-    assert(randomEngine);
-    std::bernoulli_distribution coin(probTrue);
-    return coin(*randomEngine);
-  }
-
-  PerturbedCfrForMatchingPennies(
-      const std::unordered_map<std::string, int> &utilsForPlayer1,
-      const double noise)
-      : CfrForMatchingPennies::CfrForMatchingPennies(utilsForPlayer1),
-        noise_(noise) {
-    bool initialized = false;
-    for (auto& imap : utilsForPlayer1_) {
-      DEBUG_VARIABLE("%d", abs(imap.second));
-      if (!initialized || abs(imap.second) > maxCfr_) {
-        maxCfr_ = double(abs(imap.second));
-        initialized = true;
-      }
-    }
-    maxCfr_ *= 2;
-    assert(maxCfr_ > 0.0);
-  }
-  virtual ~PerturbedCfrForMatchingPennies() {}
-
-  virtual void doIterations(size_t numIterations) override {
-    std::mt19937 randomEngine(63547654);
-    for (size_t t = 0; t < numIterations; ++t) {
-      DEBUG_HEADER2("");
-      value();
-      for (size_t j = 0; j < regretDataProfile_[i_].size(); ++j) {
-        int noiseSign = flipCoin(0.5, &randomEngine) ? 1 : -1;
-        regretProfile_[i_][j] += (regretDataProfile_[i_][j] / maxCfr_) + noiseSign * noise_;
-
-        DEBUG_VARIABLE("%lg", (regretDataProfile_[i_][j]));
-        assert(std::abs(regretDataProfile_[i_][j] / maxCfr_) <= 1.0);
-        DEBUG_VARIABLE("%lg", noiseSign * noise_);
-
-        regretDataProfile_[i_][j] = 0.0;
-      }
-      DEBUG_VARIABLE("%zu", t);
-      DEBUG_VARIABLE("%zu", i_);
-      DEBUG_VARIABLE("%lg", regretProfile_[0][0]);
-      DEBUG_VARIABLE("%lg", regretProfile_[0][1]);
-      DEBUG_VARIABLE("%lg", regretProfile_[1][0]);
-      DEBUG_VARIABLE("%lg", regretProfile_[1][1]);
-      DEBUG_VARIABLE("%lg", cumulativeAverageStrategyProfile_[0][0]);
-      DEBUG_VARIABLE("%lg", cumulativeAverageStrategyProfile_[0][1]);
-      DEBUG_VARIABLE("%lg", cumulativeAverageStrategyProfile_[1][0]);
-      DEBUG_VARIABLE("%lg", cumulativeAverageStrategyProfile_[1][1]);
-      i_ = (i_ + 1) % cumulativeAverageStrategyProfile_.size();
-    }
-  }
-
-protected:
-  const double noise_;
-  double maxCfr_;
-};
+  const size_t numSequences = 2;
+  const std::vector<size_t> numActionsAtEachInfoSet{2};
+  const std::vector<size_t> numSequencesBeforeEachInfoSet{0};
 }
 
 using namespace MatchingPennies;
@@ -367,41 +391,63 @@ SCENARIO("Playing matching pennies") {
 }
 
 SCENARIO("CFR on matching pennies") {
+  const auto policyGeneratorProfileFactory = [&]() {
+    return std::vector<PolicyGenerator<size_t,std::pair<size_t,size_t>,Numeric>*>{
+      new RegretMatchingTable(numSequences, numActionsAtEachInfoSet, numSequencesBeforeEachInfoSet),
+      new RegretMatchingTable(numSequences, numActionsAtEachInfoSet, numSequencesBeforeEachInfoSet)
+    };
+  };
   GIVEN("Traditional terminal values") {
-    std::unordered_map<std::string, int> utilsForPlayer1{
-        {"l -> L", 1}, {"l -> R", -1}, {"r -> L", -1}, {"r -> R", 1}};
+    std::vector<std::vector<int>> utilsForPlayer1{
+            {1, -1}, {-1, 1}
+    };
     THEN("CFR finds the equilibrium properly") {
-      CfrForMatchingPennies patient(utilsForPlayer1);
+      CfrForMatchingPennies<size_t,std::pair<size_t,size_t>,Numeric> patient(
+          utilsForPlayer1,
+          policyGeneratorProfileFactory()
+      );
       patient.doIterations(10);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5));
     }
   }
   GIVEN("Alternative terminal values #1") {
-    std::unordered_map<std::string, int> utilsForPlayer1{
-        {"l -> L", 1}, {"l -> R", -2}, {"r -> L", -1}, {"r -> R", 2}};
+    std::vector<std::vector<int>> utilsForPlayer1{
+      {1, -2}, {-1, 2}
+    };
     THEN("CFR finds the equilibrium properly") {
-      CfrForMatchingPennies patient(utilsForPlayer1);
+      CfrForMatchingPennies<size_t,std::pair<size_t,size_t>,Numeric> patient(
+          utilsForPlayer1,
+          policyGeneratorProfileFactory()
+      );
       patient.doIterations(1000);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.01));
       CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.001));
     }
   }
   GIVEN("Alternative terminal values #2") {
-    std::unordered_map<std::string, int> utilsForPlayer1{
-        {"l -> L", 2}, {"l -> R", -2}, {"r -> L", -1}, {"r -> R", 1}};
+    std::vector<std::vector<int>> utilsForPlayer1{
+      {2, -2}, {-1, 1}
+    };
     THEN("CFR finds the equilibrium properly") {
-      CfrForMatchingPennies patient(utilsForPlayer1);
+      CfrForMatchingPennies<size_t,std::pair<size_t,size_t>,Numeric> patient(
+          utilsForPlayer1,
+          policyGeneratorProfileFactory()
+      );
       patient.doIterations(1000);
       CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.01));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.01));
     }
   }
   GIVEN("Alternative terminal values #3") {
-    std::unordered_map<std::string, int> utilsForPlayer1{
-        {"l -> L", 2}, {"l -> R", -2}, {"r -> L", -4}, {"r -> R", 3}};
+    std::vector<std::vector<int>> utilsForPlayer1{
+      {2, -2}, {-4, 3}
+    };
     THEN("CFR finds the equilibrium properly") {
-      CfrForMatchingPennies patient(utilsForPlayer1);
+      CfrForMatchingPennies<size_t,std::pair<size_t,size_t>,Numeric> patient(
+          utilsForPlayer1,
+          policyGeneratorProfileFactory()
+      );
       patient.doIterations(1000);
       CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.01));
       CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.01));
@@ -410,41 +456,63 @@ SCENARIO("CFR on matching pennies") {
 }
 
 SCENARIO("perturbed CFR on matching pennies") {
+  const auto policyGeneratorProfileFactory = [&]() {
+    return std::vector<PolicyGenerator<size_t,std::pair<size_t,size_t>,Numeric>*>{
+      new PerturbedRegretMatchingTable(numSequences, numActionsAtEachInfoSet, numSequencesBeforeEachInfoSet, 0.1),
+      new PerturbedRegretMatchingTable(numSequences, numActionsAtEachInfoSet, numSequencesBeforeEachInfoSet, 0.1)
+    };
+  };
   GIVEN("Traditional terminal values") {
-    std::unordered_map<std::string, int> utilsForPlayer1{
-        {"l -> L", 1}, {"l -> R", -1}, {"r -> L", -1}, {"r -> R", 1}};
+    std::vector<std::vector<int>> utilsForPlayer1{
+      {1, -1}, {-1, 1}
+    };
     THEN("CFR finds the equilibrium properly") {
-      PerturbedCfrForMatchingPennies patient(utilsForPlayer1, 0.1);
+      CfrForMatchingPennies<size_t,std::pair<size_t,size_t>,Numeric> patient(
+          utilsForPlayer1,
+          policyGeneratorProfileFactory()
+      );
       patient.doIterations(100);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.01));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.1));
     }
   }
   GIVEN("Alternative terminal values #1") {
-    std::unordered_map<std::string, int> utilsForPlayer1{
-        {"l -> L", 1}, {"l -> R", -2}, {"r -> L", -1}, {"r -> R", 2}};
+    std::vector<std::vector<int>> utilsForPlayer1{
+      {1, -2}, {-1, 2}
+    };
     THEN("CFR finds the equilibrium properly") {
-      PerturbedCfrForMatchingPennies patient(utilsForPlayer1, 0.1);
+      CfrForMatchingPennies<size_t,std::pair<size_t,size_t>,Numeric> patient(
+          utilsForPlayer1,
+          policyGeneratorProfileFactory()
+      );
       patient.doIterations(100);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.1));
       CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.1));
     }
   }
   GIVEN("Alternative terminal values #2") {
-    std::unordered_map<std::string, int> utilsForPlayer1{
-        {"l -> L", 2}, {"l -> R", -2}, {"r -> L", -1}, {"r -> R", 1}};
+    std::vector<std::vector<int>> utilsForPlayer1{
+      {2, -2}, {-1, 1}
+    };
     THEN("CFR finds the equilibrium properly") {
-      PerturbedCfrForMatchingPennies patient(utilsForPlayer1, 0.1);
+      CfrForMatchingPennies<size_t,std::pair<size_t,size_t>,Numeric> patient(
+          utilsForPlayer1,
+          policyGeneratorProfileFactory()
+      );
       patient.doIterations(100);
       CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.1));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.1));
     }
   }
   GIVEN("Alternative terminal values #3") {
-    std::unordered_map<std::string, int> utilsForPlayer1{
-        {"l -> L", 2}, {"l -> R", -2}, {"r -> L", -4}, {"r -> R", 3}};
+    std::vector<std::vector<int>> utilsForPlayer1{
+      {2, -2}, {-4, 3}
+    };
     THEN("CFR finds the equilibrium properly") {
-      PerturbedCfrForMatchingPennies patient(utilsForPlayer1, 0.1);
+      CfrForMatchingPennies<size_t,std::pair<size_t,size_t>,Numeric> patient(
+          utilsForPlayer1,
+          policyGeneratorProfileFactory()
+      );
       patient.doIterations(100);
       CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.1));
       CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.1));

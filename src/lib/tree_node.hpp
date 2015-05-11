@@ -22,13 +22,11 @@ protected:
 public:
   virtual ~TreeNode() {}
   virtual bool isTerminal() const = 0;
-  Value value() {
-    return isTerminal() ? terminalValueFunction() : interiorValueFunction();
-  }
+  Value value() { return isTerminal() ? terminalValue() : interiorValue(); }
 
 protected:
-  virtual Value terminalValueFunction() = 0;
-  virtual Value interiorValueFunction() = 0;
+  virtual Value terminalValue() = 0;
+  virtual Value interiorValue() = 0;
 };
 
 template <typename Value> class TerminalNode : public TreeNode<Value> {
@@ -40,7 +38,7 @@ public:
   virtual bool isTerminal() const { return true; }
 
 protected:
-  virtual Value interiorValueFunction() override final { return Value(); }
+  virtual Value interiorValue() override final { return Value(); }
 };
 
 template <typename Value> class InteriorNode : public TreeNode<Value> {
@@ -52,7 +50,7 @@ public:
   virtual bool isTerminal() const { return false; }
 
 protected:
-  virtual Value terminalValueFunction() override final { return Value(); }
+  virtual Value terminalValue() override final { return Value(); }
 };
 
 template <typename Value>
@@ -63,7 +61,7 @@ public:
   virtual ~StoredTerminalNode() {}
 
 protected:
-  virtual Value terminalValueFunction() override final { return value_; }
+  virtual Value terminalValue() override final { return value_; }
 
 protected:
   Value value_;
@@ -109,7 +107,7 @@ public:
   }
 
 protected:
-  virtual Value interiorValueFunction() override final {
+  virtual Value interiorValue() override final {
     Value toReturn;
     for (const auto child : children_) {
       assert(child);
