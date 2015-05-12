@@ -84,9 +84,14 @@ public:
     if (sum > 0) {
       for (size_t i = 0; i < numActions; ++i) {
         policy_[i] =
-            table_[baseIndex + i] > 0.0 ? exp(log(table_[baseIndex + i]) - log(sum)) : 0.0;
+            table_[baseIndex + i] > 0.0 ? table_[baseIndex + i] / sum : 0.0;
       }
     }
+
+    DEBUG_VARIABLE("%lg", table_[baseIndex + 0]);
+    DEBUG_VARIABLE("%lg", table_[baseIndex + 1]);
+    DEBUG_VARIABLE("%lg", policy_[0]);
+    DEBUG_VARIABLE("%lg", policy_[1]);
 
     return policy_;
   }
@@ -129,16 +134,16 @@ public:
   }
 };
 
-class PerturbedRegretMatchingTable : public RegretMatchingTable {
+class PerturbedPolicyRegretMatchingTable : public RegretMatchingTable {
 public:
-  PerturbedRegretMatchingTable(
+  PerturbedPolicyRegretMatchingTable(
       size_t numSequences, const std::vector<size_t> &numActionsAtEachInfoSet,
       const std::vector<size_t> &numSequencesBeforeEachInfoSet, double noise)
       : RegretMatchingTable::RegretMatchingTable(
             numSequences, numActionsAtEachInfoSet,
             numSequencesBeforeEachInfoSet),
         randomEngine_(63547654), noise_(noise) {}
-  virtual ~PerturbedRegretMatchingTable() {}
+  virtual ~PerturbedPolicyRegretMatchingTable() {}
 
   virtual std::vector<Numeric> policy(const size_t &I) const override {
     Numeric sum = 0.0;
@@ -170,6 +175,29 @@ protected:
   mutable std::mt19937 randomEngine_;
   const double noise_;
 };
+
+class PerturbedTableRegretMatchingTable : public RegretMatchingTable {
+public:
+  PerturbedTableRegretMatchingTable(
+      size_t numSequences, const std::vector<size_t> &numActionsAtEachInfoSet,
+      const std::vector<size_t> &numSequencesBeforeEachInfoSet, double noise)
+      : RegretMatchingTable::RegretMatchingTable(
+            numSequences, numActionsAtEachInfoSet,
+            numSequencesBeforeEachInfoSet),
+        randomEngine_(63547654), noise_(noise) {}
+  virtual ~PerturbedTableRegretMatchingTable() {}
+
+  virtual void update(const std::pair<size_t, size_t> &sequence,
+      Numeric regretValue) override {
+    const int noiseSign = flipCoin(0.5, &randomEngine_) ? 1 : -1;
+    RegretMatchingTable::update(sequence, regretValue + noiseSign * noise_);
+  }
+
+protected:
+  mutable std::mt19937 randomEngine_;
+  const double noise_;
+};
+
 
 namespace MatchingPennies {
 
@@ -261,8 +289,8 @@ public:
 
   virtual double averageExploitability() {
     const auto brValues = valueProfile();
-    PRINT_VARIABLE("%lg", brValues[0]);
-    PRINT_VARIABLE("%lg", brValues[1]);
+    DEBUG_VARIABLE("%lg", brValues[0]);
+    DEBUG_VARIABLE("%lg", brValues[1]);
     return (brValues[0] + brValues[1]) / 2.0;
   }
 
@@ -362,14 +390,13 @@ protected:
 #include <unistd.h>
 
 template <typename InformationSet, typename Sequence, typename Regret>
-class CfrForMatchingPennies
-    : public HistoryTreeNode<std::vector<Numeric>, std::string> {
+class CfrForMatchingPennies : public HistoryTreeNode<Numeric, std::string> {
 public:
   CfrForMatchingPennies(
       const std::vector<std::vector<int>> &utilsForPlayer1,
       std::vector<PolicyGenerator<InformationSet, Sequence, Regret> *>
           &&policyGeneratorProfile)
-      : HistoryTreeNode<std::vector<Numeric>, std::string>::HistoryTreeNode(
+      : HistoryTreeNode<Numeric, std::string>::HistoryTreeNode(
             static_cast<History<std::string> *>(new MatchingPenniesHistory())),
         reachProbProfile_({{1.0, 1.0}, {1.0, 1.0}}),
         policyGeneratorProfile_(std::move(policyGeneratorProfile)),
@@ -410,7 +437,7 @@ public:
   }
 
 protected:
-  virtual std::vector<Numeric> terminalValue() override {
+  virtual Numeric terminalValue() override {
     int sign = 1;
     size_t not_i = 1;
     const auto myChoice = static_cast<const MatchingPenniesHistory *>(history())
@@ -419,6 +446,7 @@ protected:
         [this, &myChoice](size_t opponentChoice) {
           return utilsForPlayer1_.at(myChoice).at(opponentChoice);
         };
+    DEBUG_VARIABLE("%zu", i_);
     if (i_ == 1) {
       sign = -1;
       not_i = 0;
@@ -426,41 +454,33 @@ protected:
         return utilsForPlayer1_.at(opponentChoice).at(myChoice);
       };
     }
-    std::vector<Numeric> values(reachProbProfile_[not_i].size(), 0.0);
-    for (size_t opponentChoice = 0;
-         opponentChoice < reachProbProfile_[not_i].size(); ++opponentChoice) {
-      if (reachProbProfile_[not_i][opponentChoice] > 0.0) {
-        values[opponentChoice] =
-            (sign * reachProbProfile_[not_i][opponentChoice] *
-             u(opponentChoice));
-      }
+    Numeric value = 0.0;
+    for (size_t opponentChoice = 0; opponentChoice < reachProbProfile_[not_i].size(); ++opponentChoice) {
+      DEBUG_VARIABLE("%lg", reachProbProfile_[not_i][opponentChoice]);
+      DEBUG_VARIABLE("%lg", u(opponentChoice));
+      value += (sign * reachProbProfile_[not_i][opponentChoice] * u(opponentChoice));
+      DEBUG_VARIABLE("%lg", values[opponentChoice]);
     }
-    return values;
+    return value;
   }
-  virtual std::vector<Numeric> interiorValue() override {
-    const auto actor =
-        static_cast<const MatchingPenniesHistory *>(history())->actor();
+  virtual Numeric interiorValue() override {
+    const auto actor = static_cast<const MatchingPenniesHistory *>(history())->actor();
     const auto sigma_I = policyGeneratorProfile_[actor]->policy(0);
     return (actor != i_) ? opponentValue(actor, sigma_I)
                          : myValue(actor, sigma_I);
   }
 
-  virtual std::vector<Numeric>
-  opponentValue(size_t actor, const std::vector<Numeric> &sigma_I) {
-    std::vector<Numeric> counterfactualValue;
+  virtual Numeric opponentValue(size_t actor, const std::vector<Numeric> &sigma_I) {
+    Numeric counterfactualValue;
+    DEBUG_VARIABLE("%zu", i_);
     reachProbProfile_[actor] =
         copyAndReturnAfter(reachProbProfile_[actor], [&]() {
           history_->eachSuccessor([&](size_t, size_t legalSuccessorIndex) {
-            if (sigma_I[legalSuccessorIndex] > 0.0) {
-              reachProbProfile_[actor][legalSuccessorIndex] =
-                  reachProbProfile_[actor][legalSuccessorIndex] *
-                  sigma_I[legalSuccessorIndex];
-              cumulativeAverageStrategyProfile_[actor][legalSuccessorIndex] +=
-                  reachProbProfile_[actor][legalSuccessorIndex];
-            } else {
-              reachProbProfile_[actor][legalSuccessorIndex] = 0.0;
-            }
-            if (legalSuccessorIndex == (sigma_I.size() - 1)) {
+            DEBUG_VARIABLE("%lg", sigma_I[legalSuccessorIndex]);
+            assert(sigma_I[legalSuccessorIndex] >= 0.0);
+            reachProbProfile_[actor][legalSuccessorIndex] *= sigma_I[legalSuccessorIndex];
+            cumulativeAverageStrategyProfile_[actor][legalSuccessorIndex] += reachProbProfile_[actor][legalSuccessorIndex];
+            if (legalSuccessorIndex == reachProbProfile_.size() - 1) {
               counterfactualValue = value();
             }
             return false;
@@ -469,32 +489,24 @@ protected:
     return counterfactualValue;
   }
 
-  virtual std::vector<Numeric> myValue(size_t actor,
-                                       const std::vector<Numeric> &sigma_I) {
-    std::vector<Numeric> actionVals(sigma_I.size(), 0.0);
-    std::vector<Numeric> counterfactualValue(sigma_I.size(), 0.0);
+  virtual Numeric myValue(size_t actor, const std::vector<Numeric> &sigma_I) {
+    std::vector<Numeric> actionVals;
+    actionVals.reserve(sigma_I.size());
+    Numeric counterfactualValue = 0.0;
     reachProbProfile_[actor] =
         copyAndReturnAfter(reachProbProfile_[actor], [&]() {
           history_->eachSuccessor([&](size_t, size_t legalSuccessorIndex) {
-            reachProbProfile_[actor][legalSuccessorIndex] =
-                reachProbProfile_[actor][legalSuccessorIndex] *
-                sigma_I[legalSuccessorIndex];
-            const std::vector<Numeric> valsForAllOpponentChoices = value();
-            for (size_t i = 0; i < valsForAllOpponentChoices.size(); ++i) {
-              actionVals[legalSuccessorIndex] += valsForAllOpponentChoices[i];
-              counterfactualValue[i] +=
-                  valsForAllOpponentChoices[i] * sigma_I[legalSuccessorIndex];
-            }
+            reachProbProfile_[actor][legalSuccessorIndex] *= sigma_I[legalSuccessorIndex];
+            actionVals.push_back(value());
+            counterfactualValue += actionVals.back() * sigma_I[legalSuccessorIndex];
             return false;
           });
         });
     history_->eachLegalSuffix(
         [&](std::string, size_t, size_t legalSuccessorIndex) {
-          for (auto cfvForOpponentChoice : counterfactualValue) {
-            policyGeneratorProfile_[actor]->update(
-                std::make_pair(0, legalSuccessorIndex),
-                actionVals[legalSuccessorIndex] - cfvForOpponentChoice);
-          }
+          policyGeneratorProfile_[actor]->update(
+              std::make_pair(0, legalSuccessorIndex),
+              actionVals[legalSuccessorIndex] - counterfactualValue);
           return false;
         });
     return counterfactualValue;
@@ -581,6 +593,7 @@ SCENARIO("CFR on matching pennies") {
       patient.doIterations(10);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #1") {
@@ -588,9 +601,10 @@ SCENARIO("CFR on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      patient.doIterations(1000);
+      patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #2") {
@@ -598,9 +612,10 @@ SCENARIO("CFR on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      patient.doIterations(1000);
+      patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #3") {
@@ -608,11 +623,10 @@ SCENARIO("CFR on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      patient.doIterations(1e4);
+      patient.doIterations(5e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.001));
-      CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.1));
-
-      PRINT_VARIABLE("%lg", patient.averageExploitability());
+      CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #4") {
@@ -623,8 +637,7 @@ SCENARIO("CFR on matching pennies") {
       patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(5.0 / 9.0).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(1.0 / 3.0).epsilon(0.001));
-
-      PRINT_VARIABLE("%lg", patient.averageExploitability());
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
 }
@@ -646,6 +659,7 @@ SCENARIO("CFR+ on matching pennies") {
       patient.doIterations(10);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #1") {
@@ -653,9 +667,10 @@ SCENARIO("CFR+ on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      patient.doIterations(1000);
+      patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #2") {
@@ -663,9 +678,10 @@ SCENARIO("CFR+ on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      patient.doIterations(1000);
+      patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #3") {
@@ -673,15 +689,10 @@ SCENARIO("CFR+ on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      patient.doIterations(1e4);
+      patient.doIterations(5e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.001));
-      CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.1));
-
-      const std::vector<std::vector<Numeric>> eq{{7.0 / 11, 1 - (7.0 / 11.0)}, {5 / 11.0, 1 - (5 / 11.0)}};
-      auto br = BrForMatchingPennies(utilsForPlayer1, eq);
-      PRINT_VARIABLE("%lg", br.averageExploitability());
-
-      PRINT_VARIABLE("%lg", patient.averageExploitability());
+      CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #4") {
@@ -689,11 +700,10 @@ SCENARIO("CFR+ on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      patient.doIterations(1e6);
-      CHECK(patient.strategyProfile()[0][0] == Approx(5.0 / 9.0).epsilon(0.01));
-      CHECK(patient.strategyProfile()[1][0] == Approx(1.0 / 3.0).epsilon(0.01));
-
-      PRINT_VARIABLE("%lg", patient.averageExploitability());
+      patient.doIterations(1e4);
+      CHECK(patient.strategyProfile()[0][0] == Approx(5.0 / 9.0).epsilon(0.001));
+      CHECK(patient.strategyProfile()[1][0] == Approx(1.0 / 3.0).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
 }
@@ -702,9 +712,9 @@ SCENARIO("perturbed CFR on matching pennies") {
   const auto policyGeneratorProfileFactory = [&]() {
     return std::vector<
         PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric> *>{
-        new PerturbedRegretMatchingTable(numSequences, numActionsAtEachInfoSet,
+        new PerturbedPolicyRegretMatchingTable(numSequences, numActionsAtEachInfoSet,
                                          numSequencesBeforeEachInfoSet, 0.1),
-        new PerturbedRegretMatchingTable(numSequences, numActionsAtEachInfoSet,
+        new PerturbedPolicyRegretMatchingTable(numSequences, numActionsAtEachInfoSet,
                                          numSequencesBeforeEachInfoSet, 0.1)};
   };
   GIVEN("Traditional terminal values") {
@@ -712,9 +722,10 @@ SCENARIO("perturbed CFR on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      patient.doIterations(5000);
+      patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #1") {
@@ -722,9 +733,10 @@ SCENARIO("perturbed CFR on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      patient.doIterations(1000);
+      patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
-      CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.01));
+      CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #2") {
@@ -732,9 +744,10 @@ SCENARIO("perturbed CFR on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      patient.doIterations(5000);
+      patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
   }
   GIVEN("Alternative terminal values #3") {
@@ -742,44 +755,74 @@ SCENARIO("perturbed CFR on matching pennies") {
     THEN("CFR finds the equilibrium properly") {
       CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
-      for (size_t i = 0; i < 1000; ++i) {
+      for (size_t i = 0; i < 5e4; ++i) {
         patient.doIteration();
       }
 
       CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.001));
-      CHECK(patient.strategyProfile()[1][0] == Approx(5.0 / 11.0).epsilon(0.01));
+      CHECK(patient.strategyProfile()[1][0] == Approx(5.0 / 11.0).epsilon(0.001));
+      CHECK(patient.averageExploitability() < 1e-3);
     }
-//    GIVEN("Very noisy regret updaters") {
-//      THEN("CFR finds the equilibrium properly") {
-//        const auto altPolicyGeneratorProfileFactory = [&]() {
-//          return std::vector<
-//              PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric> *>{
-//              new PerturbedRegretMatchingTable(
-//                  numSequences, numActionsAtEachInfoSet,
-//                  numSequencesBeforeEachInfoSet, 1),
-//              new PerturbedRegretMatchingTable(
-//                  numSequences, numActionsAtEachInfoSet,
-//                  numSequencesBeforeEachInfoSet, 1)};
-//        };
-//
-////        const std::vector<std::vector<Numeric>> eq{{7.0 / 11, 1 - (7.0 / 11.0)}, {5 / 11.0, 1 - (5 / 11.0)}};
-////        auto br = BrForMatchingPennies(utilsForPlayer1, eq);
-////        PRINT_VARIABLE("%lg", br.averageExploitability());
-//
-//        CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric>
-//            patient(utilsForPlayer1, altPolicyGeneratorProfileFactory());
-//        for (size_t i = 0; i < 10000; ++i) {
-//          //        for (size_t i = 0; i < 100000; ++i) {
-//          patient.doIteration();
-////          if (i % 100000 == 0) {
-////            PRINT_VARIABLE("%lg", patient.averageExploitability());
-////          }
-//        }
-//        CHECK(patient.strategyProfile()[0][0] ==
-//              Approx(7.0 / 11).epsilon(0.01));
-//        CHECK(patient.strategyProfile()[1][0] ==
-//              Approx(5 / 11.0).epsilon(0.01));
-//      }
-//    }
+    GIVEN("Very noisy regret updaters") {
+      THEN("CFR finds the equilibrium properly") {
+        const auto altPolicyGeneratorProfileFactory = [&]() {
+          return std::vector<
+              PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric> *>{
+              new PerturbedPolicyRegretMatchingTable(
+                  numSequences, numActionsAtEachInfoSet,
+                  numSequencesBeforeEachInfoSet, 1),
+              new PerturbedPolicyRegretMatchingTable(
+                  numSequences, numActionsAtEachInfoSet,
+                  numSequencesBeforeEachInfoSet, 1)};
+        };
+        CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric>
+            patient(utilsForPlayer1, altPolicyGeneratorProfileFactory());
+        for (size_t i = 0; i < 1e5; ++i) {
+          patient.doIteration();
+        }
+        CHECK(patient.strategyProfile()[0][0] ==
+              Approx(7.0 / 11).epsilon(0.01));
+        CHECK(patient.strategyProfile()[1][0] ==
+              Approx(5 / 11.0).epsilon(0.01));
+        CHECK(patient.averageExploitability() < 1e-3);
+      }
+    }
   }
 }
+
+void runPerturbedCfrWithNoiseAndExploitabilityThreshold(double noise, double exploitability = 5e-5) {
+  std::vector<std::vector<int>> utilsForPlayer1{{2, -2}, {-4, 3}};
+  const auto altPolicyGeneratorProfileFactory = [&]() {
+    return std::vector<
+        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric> *>{
+      new PerturbedTableRegretMatchingTable(
+          numSequences, numActionsAtEachInfoSet,
+          numSequencesBeforeEachInfoSet, noise),
+              new PerturbedTableRegretMatchingTable(
+                  numSequences, numActionsAtEachInfoSet,
+                  numSequencesBeforeEachInfoSet, noise)};
+  };
+  CfrForMatchingPennies<size_t, std::pair<size_t, size_t>, Numeric>
+              patient(utilsForPlayer1, altPolicyGeneratorProfileFactory());
+  size_t t = 1;
+  while (true) {
+    patient.doIteration();
+    if (patient.averageExploitability() < exploitability || t % 100000 == 0) {
+      printf("%lg      %zu    %lg\n", noise, t, patient.averageExploitability());
+
+      if (patient.averageExploitability() < exploitability) {
+        return;
+      }
+    }
+    ++t;
+  }
+}
+
+//SCENARIO("Show impact of noise on CFR convergence") {
+//  runPerturbedCfrWithNoiseAndExploitabilityThreshold(0);
+//  double noise = 0.001;
+//  for (size_t i = 0; i < 6; ++i) {
+//    runPerturbedCfrWithNoiseAndExploitabilityThreshold(noise);
+//    noise *= 10;
+//  }
+//}
