@@ -154,7 +154,7 @@ public:
 protected:
   mutable std::mt19937 randomEngine_;
   const double noise_;
-  size_t numRegretsSmallerThanNoise_;
+  mutable size_t numRegretsSmallerThanNoise_;
 };
 
 class PerturbedTableRegretMatchingTable : public RegretMatchingTable {
