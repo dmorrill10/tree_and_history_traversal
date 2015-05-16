@@ -43,3 +43,10 @@ Thumbs.db
 .cproject
 .project
 
+.tags
+.tags_sorted_by_file
+test/bin
+vendor/utilities
+perturbed_cfr_convergence
+*.sublime-*
+compile_commands.json

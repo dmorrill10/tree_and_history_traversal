@@ -151,12 +151,12 @@ debug: $(TARGETS)
 #-------
 .PHONY: clean
 clean:
-	-rm -fr $(THIS_DIR)/bin/* $(LIB_DIR)/* $(THIS_DIR)/test/bin/* core.* $(TARGETS)
+	-rm $(THIS_DIR)/bin/* $(THIS_DIR)/test/bin/* core.* $(TARGETS) $(CPP_OBJ) $(C_OBJ)
 
 .PHONY: cleandep
 cleandep:
-	-rm -f $(DEP)
-	
+	-rm $(DEP)
+
 
 # Debugging
 #----------
@@ -218,4 +218,4 @@ test: $(TEST_EXES)
 
 .PHONY: cleantest
 cleantest:
-	-rm -f $(TEST_EXECUTABLE_DIR)/*
+	-rm $(TEST_EXECUTABLE_DIR)/* $(TEST_DIR)/*.o
