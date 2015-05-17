@@ -27,7 +27,6 @@ class GameHistory : public HistoryType {
   virtual ~GameHistory() {}
 
   virtual size_t actor() const = 0;
-  virtual std::string action(size_t player) const = 0;
 };
 }
 namespace MatrixGame {
@@ -46,9 +45,7 @@ class MatrixGameHistory : public Game::GameHistory<History::StringHistory> {
              ((candidateString == "R") || (candidateString == "L"))));
   }
   virtual size_t actor() const override { return isEmpty() ? 0 : 1; }
-  virtual std::string action(size_t player) const override {
-    return state_[player];
-  }
+  virtual std::string action(size_t player) const { return state_[player]; }
 
   virtual size_t legalActionIndex(size_t player) const {
     return ((action(player) == "l" || action(player) == "L") ? 0 : 1);

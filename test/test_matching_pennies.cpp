@@ -28,11 +28,11 @@ const std::vector<size_t> numActionsAtEachInfoSet{2};
 SCENARIO("CFR on matching pennies") {
   const auto policyGeneratorProfileFactory = [&]() {
     return std::vector<
-        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric> *>{
+        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
         new RegretMatchingTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
-                                       NUM_SEQUENCES_BEFORE_EACH_INFO_SET),
+                                NUM_SEQUENCES_BEFORE_EACH_INFO_SET),
         new RegretMatchingTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
-                                       NUM_SEQUENCES_BEFORE_EACH_INFO_SET)};
+                                NUM_SEQUENCES_BEFORE_EACH_INFO_SET)};
   };
   GIVEN("Traditional terminal values") {
     std::vector<std::vector<int>> utilsForPlayer1{{1, -1}, {-1, 1}};
@@ -84,8 +84,10 @@ SCENARIO("CFR on matching pennies") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
       patient.doIterations(1e4);
-      CHECK(patient.strategyProfile()[0][0] == Approx(5.0 / 9.0).epsilon(0.001));
-      CHECK(patient.strategyProfile()[1][0] == Approx(1.0 / 3.0).epsilon(0.001));
+      CHECK(patient.strategyProfile()[0][0] ==
+            Approx(5.0 / 9.0).epsilon(0.001));
+      CHECK(patient.strategyProfile()[1][0] ==
+            Approx(1.0 / 3.0).epsilon(0.001));
       CHECK(patient.averageExploitability() < 1e-3);
     }
   }
@@ -94,11 +96,11 @@ SCENARIO("CFR on matching pennies") {
 SCENARIO("CFR+ on matching pennies") {
   const auto policyGeneratorProfileFactory = [&]() {
     return std::vector<
-        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric> *>{
+        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
         new RegretMatchingPlusTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
-                                       NUM_SEQUENCES_BEFORE_EACH_INFO_SET),
+                                    NUM_SEQUENCES_BEFORE_EACH_INFO_SET),
         new RegretMatchingPlusTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
-                                       NUM_SEQUENCES_BEFORE_EACH_INFO_SET)};
+                                    NUM_SEQUENCES_BEFORE_EACH_INFO_SET)};
   };
   GIVEN("Traditional terminal values") {
     std::vector<std::vector<int>> utilsForPlayer1{{1, -1}, {-1, 1}};
@@ -150,8 +152,10 @@ SCENARIO("CFR+ on matching pennies") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
           utilsForPlayer1, policyGeneratorProfileFactory());
       patient.doIterations(1e4);
-      CHECK(patient.strategyProfile()[0][0] == Approx(5.0 / 9.0).epsilon(0.001));
-      CHECK(patient.strategyProfile()[1][0] == Approx(1.0 / 3.0).epsilon(0.001));
+      CHECK(patient.strategyProfile()[0][0] ==
+            Approx(5.0 / 9.0).epsilon(0.001));
+      CHECK(patient.strategyProfile()[1][0] ==
+            Approx(1.0 / 3.0).epsilon(0.001));
       CHECK(patient.averageExploitability() < 1e-3);
     }
   }
@@ -160,11 +164,13 @@ SCENARIO("CFR+ on matching pennies") {
 SCENARIO("perturbed CFR on matching pennies") {
   const auto policyGeneratorProfileFactory = [&]() {
     return std::vector<
-        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric> *>{
-        new PerturbedPolicyRegretMatchingTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
-                                         NUM_SEQUENCES_BEFORE_EACH_INFO_SET, 0.1),
-        new PerturbedPolicyRegretMatchingTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
-                                         NUM_SEQUENCES_BEFORE_EACH_INFO_SET, 0.1)};
+        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
+        new PerturbedPolicyRegretMatchingTable(
+            NUM_SEQUENCES, numActionsAtEachInfoSet,
+            NUM_SEQUENCES_BEFORE_EACH_INFO_SET, 0.1),
+        new PerturbedPolicyRegretMatchingTable(
+            NUM_SEQUENCES, numActionsAtEachInfoSet,
+            NUM_SEQUENCES_BEFORE_EACH_INFO_SET, 0.1)};
   };
   GIVEN("Traditional terminal values") {
     std::vector<std::vector<int>> utilsForPlayer1{{1, -1}, {-1, 1}};
@@ -209,14 +215,15 @@ SCENARIO("perturbed CFR on matching pennies") {
       }
 
       CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.001));
-      CHECK(patient.strategyProfile()[1][0] == Approx(5.0 / 11.0).epsilon(0.001));
+      CHECK(patient.strategyProfile()[1][0] ==
+            Approx(5.0 / 11.0).epsilon(0.001));
       CHECK(patient.averageExploitability() < 1e-3);
     }
     GIVEN("Very noisy regret updaters") {
       THEN("CFR finds the equilibrium properly") {
         const auto altPolicyGeneratorProfileFactory = [&]() {
           return std::vector<
-              PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric> *>{
+              PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
               new PerturbedPolicyRegretMatchingTable(
                   NUM_SEQUENCES, numActionsAtEachInfoSet,
                   NUM_SEQUENCES_BEFORE_EACH_INFO_SET, 1),
@@ -224,8 +231,8 @@ SCENARIO("perturbed CFR on matching pennies") {
                   NUM_SEQUENCES, numActionsAtEachInfoSet,
                   NUM_SEQUENCES_BEFORE_EACH_INFO_SET, 1)};
         };
-        Cfr<size_t, std::pair<size_t, size_t>, Numeric>
-            patient(utilsForPlayer1, altPolicyGeneratorProfileFactory());
+        Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
+            utilsForPlayer1, altPolicyGeneratorProfileFactory());
         for (size_t i = 0; i < 1e5; ++i) {
           patient.doIteration();
         }
