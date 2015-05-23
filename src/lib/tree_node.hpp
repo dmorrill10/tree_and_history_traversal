@@ -11,76 +11,75 @@ extern "C" {
 
 namespace TreeAndHistoryTraversal {
 namespace TreeNode {
-template <typename Value> class TreeNode {
-public:
-  using TerminalValueFunction = std::function<Value()>;
-  using InteriorValueFunction = std::function<Value()>;
-
-protected:
+template <typename Value>
+class TreeNode {
+ protected:
   TreeNode() {}
 
-public:
+ public:
   virtual ~TreeNode() {}
   virtual bool isTerminal() const = 0;
   virtual Value value() {
     return isTerminal() ? terminalValue() : interiorValue();
   }
 
-protected:
+ protected:
   virtual Value terminalValue() = 0;
   virtual Value interiorValue() = 0;
 };
 
-template <typename Value> class TerminalNode : public TreeNode<Value> {
-protected:
+template <typename Value>
+class TerminalNode : public TreeNode<Value> {
+ protected:
   TerminalNode() : TreeNode<Value>::TreeNode() {}
 
-public:
+ public:
   virtual ~TerminalNode() {}
   virtual bool isTerminal() const { return true; }
 
-protected:
+ protected:
   virtual Value interiorValue() override final { return Value(); }
 };
 
-template <typename Value> class InteriorNode : public TreeNode<Value> {
-protected:
+template <typename Value>
+class InteriorNode : public TreeNode<Value> {
+ protected:
   InteriorNode() : TreeNode<Value>::TreeNode() {}
 
-public:
+ public:
   virtual ~InteriorNode() {}
   virtual bool isTerminal() const { return false; }
 
-protected:
+ protected:
   virtual Value terminalValue() override final { return Value(); }
 };
 
 template <typename Value>
 class StoredTerminalNode : public TerminalNode<Value> {
-public:
+ public:
   StoredTerminalNode(Value value)
       : TerminalNode<Value>::TerminalNode(), value_(value) {}
   virtual ~StoredTerminalNode() {}
 
-protected:
+ protected:
   virtual Value terminalValue() override final { return value_; }
 
-protected:
+ protected:
   Value value_;
 };
 
 template <typename Value>
 class StoredInteriorNode : public InteriorNode<Value> {
-public:
-  StoredInteriorNode(std::function<Value(Value &&childValue)> f)
+ public:
+  StoredInteriorNode(std::function<Value(Value&& childValue)> f)
       : InteriorNode<Value>::InteriorNode(), f_(f){};
-  StoredInteriorNode(std::vector<TreeNode<Value> *> &&children,
-                     std::function<Value(Value &&childValue)> &&f)
+  StoredInteriorNode(std::vector<TreeNode<Value>*>&& children,
+                     std::function<Value(Value&& childValue)>&& f)
       : StoredInteriorNode::StoredInteriorNode(f) {
     children_ = children;
   };
-  StoredInteriorNode(const std::vector<TreeNode<Value> *> &children,
-                     std::function<Value(Value &&childValue)> &&f)
+  StoredInteriorNode(const std::vector<TreeNode<Value>*>& children,
+                     std::function<Value(Value&& childValue)>&& f)
       : StoredInteriorNode::StoredInteriorNode(f) {
     children_ = children;
   };
@@ -90,25 +89,25 @@ public:
     }
   };
 
-  virtual void addChild(TreeNode<Value> *newChild) {
+  virtual void addChild(TreeNode<Value>* newChild) {
     children_.emplace_back(newChild);
   }
 
-  virtual void setChildren(std::vector<TreeNode<Value> *> &&children) {
+  virtual void setChildren(std::vector<TreeNode<Value>*>&& children) {
     for (auto child : children_) {
       Utilities::Memory::deletePointer(child);
     }
     children_ = children;
   }
 
-  virtual void setChildren(std::vector<TreeNode<Value> *> &children) {
+  virtual void setChildren(std::vector<TreeNode<Value>*>& children) {
     for (auto child : children_) {
       Utilities::Memory::deletePointer(child);
     }
     children_ = children;
   }
 
-protected:
+ protected:
   virtual Value interiorValue() override final {
     Value toReturn;
     for (const auto child : children_) {
@@ -118,9 +117,9 @@ protected:
     return toReturn;
   }
 
-protected:
-  std::vector<TreeNode<Value> *> children_;
-  std::function<Value(Value &&childValue)> f_;
+ protected:
+  std::vector<TreeNode<Value>*> children_;
+  std::function<Value(Value&& childValue)> f_;
 };
 }
 }
