@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include <lib/utils.hpp>
+#include "utils.hpp"
 
 extern "C" {
 #include <utilities/src/lib/print_debugger.h>
@@ -13,32 +13,32 @@ extern "C" {
 namespace TreeAndHistoryTraversal {
 namespace PolicyGenerator {
 
-template <typename InformationSet, typename Sequence, typename Regret>
+template <typename InformationSet, typename Sequence, typename Value>
 class PolicyGenerator {
-protected:
+ protected:
   PolicyGenerator() {}
 
-public:
+ public:
   virtual ~PolicyGenerator() {}
 
-  virtual std::vector<double> policy(const InformationSet &I) const = 0;
-  virtual void update(const Sequence &sequence, Regret regretValue) = 0;
+  virtual std::vector<double> policy(const InformationSet& I) const = 0;
+  virtual void update(const Sequence& sequence, Value value) = 0;
 };
 
 typedef double Numeric;
 
 class RegretMatchingTable
     : public PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric> {
-public:
+ public:
   RegretMatchingTable(size_t numSequences,
-                      const std::vector<size_t> &numActionsAtEachInfoSet,
-                      const std::vector<size_t> &numSequencesBeforeEachInfoSet)
+                      const std::vector<size_t>& numActionsAtEachInfoSet,
+                      const std::vector<size_t>& numSequencesBeforeEachInfoSet)
       : table_(numSequences, 0.0),
         numActionsAtEachInfoSet_(&numActionsAtEachInfoSet),
         numSequencesBeforeEachInfoSet_(&numSequencesBeforeEachInfoSet) {}
   virtual ~RegretMatchingTable() {}
 
-  virtual std::vector<Numeric> policy(const size_t &I) const override {
+  virtual std::vector<Numeric> policy(const size_t& I) const override {
     Numeric sum = 0.0;
     const auto numActions = (*numActionsAtEachInfoSet_)[I];
     const auto baseIndex = (*numSequencesBeforeEachInfoSet_)[I];
@@ -63,57 +63,64 @@ public:
     return policy_;
   }
 
-  virtual void update(const std::pair<size_t, size_t> &sequence,
-      Numeric regretValue) override {
+  virtual void update(const std::pair<size_t, size_t>& sequence,
+                      Numeric regretValue) override {
     const auto infoSet = sequence.first;
     const auto action = sequence.second;
     const auto index = (*numSequencesBeforeEachInfoSet_)[infoSet] + action;
     table_[index] += regretValue;
   }
 
-protected:
+ protected:
   std::vector<Numeric> table_;
-  const std::vector<size_t> *numActionsAtEachInfoSet_;
-  const std::vector<size_t> *numSequencesBeforeEachInfoSet_;
+  const std::vector<size_t>* numActionsAtEachInfoSet_;
+  const std::vector<size_t>* numSequencesBeforeEachInfoSet_;
 };
 
+using AverageStrategyTable = RegretMatchingTable;
+
 class RegretMatchingPlusTable : public RegretMatchingTable {
-public:
+ public:
   RegretMatchingPlusTable(
-      size_t numSequences, const std::vector<size_t> &numActionsAtEachInfoSet,
-      const std::vector<size_t> &numSequencesBeforeEachInfoSet)
+      size_t numSequences,
+      const std::vector<size_t>& numActionsAtEachInfoSet,
+      const std::vector<size_t>& numSequencesBeforeEachInfoSet)
       : RegretMatchingTable::RegretMatchingTable(
-            numSequences, numActionsAtEachInfoSet,
+            numSequences,
+            numActionsAtEachInfoSet,
             numSequencesBeforeEachInfoSet) {}
   virtual ~RegretMatchingPlusTable() {}
 
-  virtual void update(const std::pair<size_t, size_t> &sequence,
-      Numeric regretValue) override {
+  virtual void update(const std::pair<size_t, size_t>& sequence,
+                      Numeric regretValue) override {
     const auto infoSet = sequence.first;
     const auto action = sequence.second;
     const auto index = (*numSequencesBeforeEachInfoSet_)[infoSet] + action;
     if (table_[index] + regretValue > 0.0) {
       table_[index] += regretValue;
-    }
-    else {
+    } else {
       table_[index] = 0.0;
     }
   }
 };
 
 class PerturbedPolicyRegretMatchingTable : public RegretMatchingTable {
-public:
+ public:
   PerturbedPolicyRegretMatchingTable(
-      size_t numSequences, const std::vector<size_t> &numActionsAtEachInfoSet,
-      const std::vector<size_t> &numSequencesBeforeEachInfoSet, double noise, size_t randomSeed = 63547654)
-      : RegretMatchingTable::RegretMatchingTable(
-            numSequences, numActionsAtEachInfoSet,
-            numSequencesBeforeEachInfoSet),
-        randomEngine_(randomSeed), noise_(noise),
+      size_t numSequences,
+      const std::vector<size_t>& numActionsAtEachInfoSet,
+      const std::vector<size_t>& numSequencesBeforeEachInfoSet,
+      double noise,
+      size_t randomSeed = 63547654)
+      : RegretMatchingTable::RegretMatchingTable(numSequences,
+                                                 numActionsAtEachInfoSet,
+                                                 numSequencesBeforeEachInfoSet),
+        randomEngine_(randomSeed),
+        noise_(noise),
         numRegretsSmallerThanNoise_(0) {}
   virtual ~PerturbedPolicyRegretMatchingTable() {}
 
-  virtual std::vector<Numeric> policy(const size_t &I) const override {
+  virtual std::vector<Numeric> policy(const size_t& I) const override {
     Numeric sum = 0.0;
     const auto numActions = (*numActionsAtEachInfoSet_)[I];
     const auto baseIndex = (*numSequencesBeforeEachInfoSet_)[I];
@@ -147,34 +154,35 @@ public:
     return numRegretsSmallerThanNoise_;
   }
 
-  void clearnumRegretsSmallerThanNoise() {
-    numRegretsSmallerThanNoise_ = 0;
-  }
+  void clearnumRegretsSmallerThanNoise() { numRegretsSmallerThanNoise_ = 0; }
 
-protected:
+ protected:
   mutable std::mt19937 randomEngine_;
   const double noise_;
   mutable size_t numRegretsSmallerThanNoise_;
 };
 
 class PerturbedTableRegretMatchingTable : public RegretMatchingTable {
-public:
+ public:
   PerturbedTableRegretMatchingTable(
-      size_t numSequences, const std::vector<size_t> &numActionsAtEachInfoSet,
-      const std::vector<size_t> &numSequencesBeforeEachInfoSet, double noise)
-      : RegretMatchingTable::RegretMatchingTable(
-            numSequences, numActionsAtEachInfoSet,
-            numSequencesBeforeEachInfoSet),
-        randomEngine_(63547654), noise_(noise) {}
+      size_t numSequences,
+      const std::vector<size_t>& numActionsAtEachInfoSet,
+      const std::vector<size_t>& numSequencesBeforeEachInfoSet,
+      double noise)
+      : RegretMatchingTable::RegretMatchingTable(numSequences,
+                                                 numActionsAtEachInfoSet,
+                                                 numSequencesBeforeEachInfoSet),
+        randomEngine_(63547654),
+        noise_(noise) {}
   virtual ~PerturbedTableRegretMatchingTable() {}
 
-  virtual void update(const std::pair<size_t, size_t> &sequence,
-      Numeric regretValue) override {
+  virtual void update(const std::pair<size_t, size_t>& sequence,
+                      Numeric regretValue) override {
     const int noiseSign = Utils::flipCoin(0.5, &randomEngine_) ? 1 : -1;
     RegretMatchingTable::update(sequence, regretValue + noiseSign * noise_);
   }
 
-protected:
+ protected:
   mutable std::mt19937 randomEngine_;
   const double noise_;
 };

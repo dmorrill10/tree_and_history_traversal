@@ -26,6 +26,14 @@ using namespace MatrixGame;
 const std::vector<size_t> numActionsAtEachInfoSet{2};
 
 SCENARIO("CFR on matching pennies") {
+  const auto averageGeneratorProfileFactory = [&]() {
+    return std::vector<
+        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
+        new AverageStrategyTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
+                                 NUM_SEQUENCES_BEFORE_EACH_INFO_SET),
+        new AverageStrategyTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
+                                 NUM_SEQUENCES_BEFORE_EACH_INFO_SET)};
+  };
   const auto policyGeneratorProfileFactory = [&]() {
     return std::vector<
         PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
@@ -38,7 +46,8 @@ SCENARIO("CFR on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{1, -1}, {-1, 1}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(10);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5));
@@ -49,7 +58,8 @@ SCENARIO("CFR on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{1, -2}, {-1, 2}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.001));
@@ -60,7 +70,8 @@ SCENARIO("CFR on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{2, -2}, {-1, 1}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
@@ -71,7 +82,8 @@ SCENARIO("CFR on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{2, -2}, {-4, 3}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(5e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.001));
@@ -82,7 +94,8 @@ SCENARIO("CFR on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{2, -2}, {-4, 1}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] ==
             Approx(5.0 / 9.0).epsilon(0.001));
@@ -94,6 +107,14 @@ SCENARIO("CFR on matching pennies") {
 }
 
 SCENARIO("CFR+ on matching pennies") {
+  const auto averageGeneratorProfileFactory = [&]() {
+    return std::vector<
+        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
+        new AverageStrategyTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
+                                 NUM_SEQUENCES_BEFORE_EACH_INFO_SET),
+        new AverageStrategyTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
+                                 NUM_SEQUENCES_BEFORE_EACH_INFO_SET)};
+  };
   const auto policyGeneratorProfileFactory = [&]() {
     return std::vector<
         PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
@@ -106,7 +127,8 @@ SCENARIO("CFR+ on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{1, -1}, {-1, 1}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(10);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5));
@@ -117,7 +139,8 @@ SCENARIO("CFR+ on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{1, -2}, {-1, 2}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.001));
@@ -128,7 +151,8 @@ SCENARIO("CFR+ on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{2, -2}, {-1, 1}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
@@ -139,7 +163,8 @@ SCENARIO("CFR+ on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{2, -2}, {-4, 3}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(5e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(7.0 / 11).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(5 / 11.0).epsilon(0.001));
@@ -150,7 +175,8 @@ SCENARIO("CFR+ on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{2, -2}, {-4, 1}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] ==
             Approx(5.0 / 9.0).epsilon(0.001));
@@ -162,6 +188,14 @@ SCENARIO("CFR+ on matching pennies") {
 }
 
 SCENARIO("perturbed CFR on matching pennies") {
+  const auto averageGeneratorProfileFactory = [&]() {
+    return std::vector<
+        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
+        new AverageStrategyTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
+                                 NUM_SEQUENCES_BEFORE_EACH_INFO_SET),
+        new AverageStrategyTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
+                                 NUM_SEQUENCES_BEFORE_EACH_INFO_SET)};
+  };
   const auto policyGeneratorProfileFactory = [&]() {
     return std::vector<
         PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
@@ -176,7 +210,8 @@ SCENARIO("perturbed CFR on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{1, -1}, {-1, 1}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
@@ -187,7 +222,8 @@ SCENARIO("perturbed CFR on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{1, -2}, {-1, 2}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(0.5).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(2.0 / 3).epsilon(0.001));
@@ -198,7 +234,8 @@ SCENARIO("perturbed CFR on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{2, -2}, {-1, 1}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       patient.doIterations(1e4);
       CHECK(patient.strategyProfile()[0][0] == Approx(1.0 / 3).epsilon(0.001));
       CHECK(patient.strategyProfile()[1][0] == Approx(0.5).epsilon(0.001));
@@ -209,7 +246,8 @@ SCENARIO("perturbed CFR on matching pennies") {
     std::vector<std::vector<int>> utilsForPlayer1{{2, -2}, {-4, 3}};
     THEN("CFR finds the equilibrium properly") {
       Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-          utilsForPlayer1, policyGeneratorProfileFactory());
+          utilsForPlayer1, policyGeneratorProfileFactory(),
+          averageGeneratorProfileFactory());
       for (size_t i = 0; i < 5e4; ++i) {
         patient.doIteration();
       }
@@ -232,7 +270,8 @@ SCENARIO("perturbed CFR on matching pennies") {
                   NUM_SEQUENCES_BEFORE_EACH_INFO_SET, 1)};
         };
         Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
-            utilsForPlayer1, altPolicyGeneratorProfileFactory());
+            utilsForPlayer1, altPolicyGeneratorProfileFactory(),
+            averageGeneratorProfileFactory());
         for (size_t i = 0; i < 1e5; ++i) {
           patient.doIteration();
         }

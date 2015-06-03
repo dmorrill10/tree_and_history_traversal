@@ -9,8 +9,8 @@ extern "C" {
 }
 #include <utilities/src/lib/memory.h>
 
-#include <lib/tree_node.hpp>
-#include <lib/history.hpp>
+#include "tree_node.hpp"
+#include "history.hpp"
 
 namespace TreeAndHistoryTraversal {
 namespace HistoryTreeNode {

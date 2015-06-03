@@ -104,10 +104,10 @@ class BestResponse
     size_t not_i = 1;
     const auto myChoice =
         static_cast<const MatrixGameHistory*>(history())->legalActionIndex(i_);
-    std::function<Utils::Numeric(size_t)> u =
-        [this, &myChoice](size_t opponentChoice) {
-          return utilsForPlayer1_->at(myChoice).at(opponentChoice);
-        };
+    std::function<Utils::Numeric(size_t)> u = [this, &myChoice](
+        size_t opponentChoice) {
+      return utilsForPlayer1_->at(myChoice).at(opponentChoice);
+    };
     if (i_ == 1) {
       sign = -1;
       not_i = 0;
@@ -197,13 +197,16 @@ class Cfr
   Cfr(const std::vector<std::vector<int>>& utilsForPlayer1,
       std::vector<
           PolicyGenerator::PolicyGenerator<InformationSet, Sequence, Regret>*>&&
-          policyGeneratorProfile)
+          policyGeneratorProfile,
+      std::vector<
+          PolicyGenerator::PolicyGenerator<InformationSet, Sequence, Regret>*>&&
+          averageGeneratorProfile)
       : HistoryTreeNode<Utils::Numeric, std::string>::HistoryTreeNode(
             static_cast<History::History<std::string>*>(
                 new MatrixGameHistory())),
         reachProbProfile_({{1.0, 1.0}, {1.0, 1.0}}),
         policyGeneratorProfile_(std::move(policyGeneratorProfile)),
-        cumulativeAverageStrategyProfile_({{0, 0}, {0, 0}}),
+        cumulativeAverageStrategyProfile_(std::move(averageGeneratorProfile)),
         utilsForPlayer1_(&utilsForPlayer1),
         i_(0),
         averageStrategyProfile_({{1.0, 0}, {1.0, 0}}) {}
@@ -235,8 +238,8 @@ class Cfr
   virtual const std::vector<std::vector<Utils::Numeric>>& strategyProfile()
       const {
     for (size_t i = 0; i < cumulativeAverageStrategyProfile_.size(); ++i) {
-      Utils::normalize(cumulativeAverageStrategyProfile_[i],
-                       &(averageStrategyProfile_[i]));
+      averageStrategyProfile_[i] =
+          cumulativeAverageStrategyProfile_[i]->policy(0);
     }
     return averageStrategyProfile_;
   }
@@ -247,10 +250,10 @@ class Cfr
     size_t not_i = 1;
     const auto myChoice =
         static_cast<const MatrixGameHistory*>(history())->legalActionIndex(i_);
-    std::function<Utils::Numeric(size_t)> u =
-        [this, &myChoice](size_t opponentChoice) {
-          return utilsForPlayer1_->at(myChoice).at(opponentChoice);
-        };
+    std::function<Utils::Numeric(size_t)> u = [this, &myChoice](
+        size_t opponentChoice) {
+      return utilsForPlayer1_->at(myChoice).at(opponentChoice);
+    };
     DEBUG_VARIABLE("%zu", i_);
     if (i_ == 1) {
       sign = -1;
@@ -290,8 +293,9 @@ class Cfr
             assert(sigma_I[legalSuccessorIndex] >= 0.0);
             reachProbProfile_[actor][legalSuccessorIndex] *=
                 sigma_I[legalSuccessorIndex];
-            cumulativeAverageStrategyProfile_[actor][legalSuccessorIndex] +=
-                reachProbProfile_[actor][legalSuccessorIndex];
+            cumulativeAverageStrategyProfile_[actor]->update(
+                std::make_pair(0, legalSuccessorIndex),
+                reachProbProfile_[actor][legalSuccessorIndex]);
             if (legalSuccessorIndex == reachProbProfile_.size() - 1) {
               counterfactualValue = value();
             }
@@ -333,7 +337,9 @@ class Cfr
   std::vector<
       PolicyGenerator::PolicyGenerator<InformationSet, Sequence, Regret>*>
       policyGeneratorProfile_;
-  std::vector<std::vector<Utils::Numeric>> cumulativeAverageStrategyProfile_;
+  std::vector<
+      PolicyGenerator::PolicyGenerator<InformationSet, Sequence, Regret>*>
+      cumulativeAverageStrategyProfile_;
   const std::vector<std::vector<int>>* utilsForPlayer1_;
   size_t i_;
   mutable std::vector<std::vector<Utils::Numeric>> averageStrategyProfile_;
