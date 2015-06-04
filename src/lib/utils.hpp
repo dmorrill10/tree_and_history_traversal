@@ -13,8 +13,8 @@ T copyAndReturnAfter(T valueToSaveAndRestore, std::function<void()> doFn) {
   return valueToSaveAndRestore;
 }
 
-template <typename Numeric>
-std::vector<Numeric> normalized(const std::vector<Numeric> &v) {
+template <typename Numeric = double>
+std::vector<Numeric> normalized(const std::vector<Numeric>& v) {
   Numeric sum = 0.0;
   std::vector<Numeric> n(v.size(), 1.0 / v.size());
   for (auto elem : v) {
@@ -28,8 +28,8 @@ std::vector<Numeric> normalized(const std::vector<Numeric> &v) {
   return n;
 }
 
-template <typename Numeric>
-void normalize(const std::vector<Numeric> &from, std::vector<Numeric> *to) {
+template <typename Numeric = double>
+void normalize(const std::vector<Numeric>& from, std::vector<Numeric>* to) {
   Numeric sum = 0.0;
   for (auto elem : from) {
     sum += elem;
@@ -38,15 +38,15 @@ void normalize(const std::vector<Numeric> &from, std::vector<Numeric> *to) {
     for (size_t i = 0; i < from.size(); ++i) {
       (*to)[i] = from[i] > 0.0 ? exp(log(from[i]) - log(sum)) : 0.0;
     }
-  }
-  else {
+  } else {
     for (size_t i = 0; i < from.size(); ++i) {
       (*to)[i] = 1.0 / from.size();
     }
   }
 }
 
-bool flipCoin(double probTrue, std::mt19937 *randomEngine) {
+template <typename Numeric = double, typename RandomEngine = std::mt19937>
+bool flipCoin(Numeric probTrue, RandomEngine* randomEngine) {
   assert(randomEngine);
   std::bernoulli_distribution coin(probTrue);
   return coin(*randomEngine);
