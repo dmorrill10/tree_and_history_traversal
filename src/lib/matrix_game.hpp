@@ -104,10 +104,10 @@ class BestResponse
     size_t not_i = 1;
     const auto myChoice =
         static_cast<const MatrixGameHistory*>(history())->legalActionIndex(i_);
-    std::function<Utils::Numeric(size_t)> u = [this, &myChoice](
-        size_t opponentChoice) {
-      return utilsForPlayer1_->at(myChoice).at(opponentChoice);
-    };
+    std::function<Utils::Numeric(size_t)> u =
+        [this, &myChoice](size_t opponentChoice) {
+          return utilsForPlayer1_->at(myChoice).at(opponentChoice);
+        };
     if (i_ == 1) {
       sign = -1;
       not_i = 0;
@@ -216,6 +216,11 @@ class Cfr
         delete policyGenerator;
       }
     }
+    for (auto& policyGenerator : cumulativeAverageStrategyProfile_) {
+      if (policyGenerator) {
+        delete policyGenerator;
+      }
+    }
   }
 
   virtual void doIterations(size_t numIterations) {
@@ -250,10 +255,10 @@ class Cfr
     size_t not_i = 1;
     const auto myChoice =
         static_cast<const MatrixGameHistory*>(history())->legalActionIndex(i_);
-    std::function<Utils::Numeric(size_t)> u = [this, &myChoice](
-        size_t opponentChoice) {
-      return utilsForPlayer1_->at(myChoice).at(opponentChoice);
-    };
+    std::function<Utils::Numeric(size_t)> u =
+        [this, &myChoice](size_t opponentChoice) {
+          return utilsForPlayer1_->at(myChoice).at(opponentChoice);
+        };
     DEBUG_VARIABLE("%zu", i_);
     if (i_ == 1) {
       sign = -1;
