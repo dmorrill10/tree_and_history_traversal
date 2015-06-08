@@ -23,6 +23,10 @@ class PolicyGenerator {
 
   virtual std::vector<double> policy(const InformationSet& I) const = 0;
   virtual void update(const Sequence& sequence, Value value) = 0;
+  /**
+   * Answers the question, "how many parameters does this generator require?"
+   */
+  virtual size_t complexity() const = 0;
 };
 
 typedef double Numeric;
@@ -70,6 +74,8 @@ class RegretMatchingTable
     const auto index = (*numSequencesBeforeEachInfoSet_)[infoSet] + action;
     table_[index] += regretValue;
   }
+
+  virtual size_t complexity() const override { return table_.size(); };
 
  protected:
   std::vector<Numeric> table_;
@@ -150,6 +156,10 @@ class PerturbedPolicyRegretMatchingTable : public RegretMatchingTable {
     return policy_;
   }
 
+  virtual size_t complexity() const override {
+    return RegretMatchingTable::complexity() + 1;
+  };
+
   size_t numRegretsSmallerThanNoise() const {
     return numRegretsSmallerThanNoise_;
   }
@@ -181,6 +191,10 @@ class PerturbedTableRegretMatchingTable : public RegretMatchingTable {
     const int noiseSign = Utils::flipCoin(0.5, &randomEngine_) ? 1 : -1;
     RegretMatchingTable::update(sequence, regretValue + noiseSign * noise_);
   }
+
+  virtual size_t complexity() const override {
+    return RegretMatchingTable::complexity() + 1;
+  };
 
  protected:
   mutable std::mt19937 randomEngine_;
