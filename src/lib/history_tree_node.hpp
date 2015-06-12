@@ -27,5 +27,21 @@ class HistoryTreeNode : public TreeNode::TreeNode<Value> {
  protected:
   History::History<Symbol>* history_;
 };
+
+template <class Symbol>
+class PreorderHistoryTreeTraversal : public HistoryTreeNode<char, Symbol> {
+ public:
+  using HistoryTreeNode<char, Symbol>::HistoryTreeNode;
+
+ protected:
+  virtual char terminalValue() override { return 0; }
+  virtual char interiorValue() override {
+    this->history_->eachSuccessor([this](size_t, size_t) {
+      this->value();
+      return false;
+    });
+    return 0;
+  }
+};
 }
 }
