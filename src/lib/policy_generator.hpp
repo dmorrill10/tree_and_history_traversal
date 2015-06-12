@@ -13,7 +13,10 @@ extern "C" {
 namespace TreeAndHistoryTraversal {
 namespace PolicyGenerator {
 
-template <typename InformationSet, typename Sequence, typename Value>
+template <typename InformationSet,
+          typename Sequence,
+          typename Value = double,
+          typename PolicyAtI = std::vector<double>>
 class PolicyGenerator {
  protected:
   PolicyGenerator() {}
@@ -21,7 +24,7 @@ class PolicyGenerator {
  public:
   virtual ~PolicyGenerator() {}
 
-  virtual std::vector<double> policy(const InformationSet& I) const = 0;
+  virtual PolicyAtI policy(const InformationSet& I) const = 0;
   virtual void update(const Sequence& sequence, Value value) = 0;
   /**
    * Answers the question, "how many parameters does this generator require?"
