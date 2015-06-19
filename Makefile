@@ -113,7 +113,7 @@ INCLUDES +=$(SRC_INCLUDES)
 %.cpp.o: %.cpp | $(UTILITIES_DIR)
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [CPP] $@
-	$(CPP) -c $(CPPFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
+	@$(CPP) -c $(CPPFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
 
 $(TARGETS): $(CPP_LIB_OBJ) $(C_LIB_OBJ) $(MAIN_OBJ)
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
