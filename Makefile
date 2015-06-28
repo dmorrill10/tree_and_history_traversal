@@ -31,7 +31,7 @@ CFLAGS = -fPIC -march=native
 ### C++
 CPPFLAGS := $(CFLAGS)
 #CLANG_OPTIONS = -fsanitize=memory -fno-optimize-sibling-calls -fno-omit-frame-pointer -fsanitize-memory-track-origins=1
-CPP =clang++-3.5 -std=c++14 $(CLANG_OPTIONS)
+CPP =clang++ -std=c++11 $(CLANG_OPTIONS)
 
 
 # Linking options
@@ -54,11 +54,6 @@ $(VENDOR_DIR):
 #-------------------
 
 UTILITIES_DIR :=$(VENDOR_DIR)/utilities
-$(UTILITIES_DIR):
-	wget https://github.com/dmorrill10/cpp_utilities/archive/master.zip
-	unzip master.zip
-	mv cpp_utilities-master $(UTILITIES_DIR)
-	-rm master.zip
 
 
 VENDOR_INCLUDES :=-I$(VENDOR_DIR)
@@ -169,7 +164,7 @@ print-%:
 
 # Definitions
 #------------
-CATCH_DIR :=$(VENDOR_DIR)/catch
+CATCH_DIR :=$(VENDOR_DIR)/Catch/single_include
 TEST_DIR :=$(abspath $(THIS_DIR)/test)
 TEST_SUPPORT_DIR :=$(TEST_DIR)/support
 TEST_SRC_EXTENSION =.cpp

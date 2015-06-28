@@ -21,8 +21,17 @@ static void runPerturbedCfrWithNoiseAndExploitabilityThreshold(double noise, siz
                   NUM_SEQUENCES, numActionsAtEachInfoSet,
                   NUM_SEQUENCES_BEFORE_EACH_INFO_SET, noise, randomSeed)};
   };
-  Cfr<size_t, std::pair<size_t, size_t>, Numeric>
-              patient(utilsForPlayer1, altPolicyGeneratorProfileFactory());
+  const auto averageGeneratorProfileFactory = [&]() {
+    return std::vector<
+        PolicyGenerator<size_t, std::pair<size_t, size_t>, Numeric>*>{
+        new AverageStrategyTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
+                                 NUM_SEQUENCES_BEFORE_EACH_INFO_SET),
+        new AverageStrategyTable(NUM_SEQUENCES, numActionsAtEachInfoSet,
+                                 NUM_SEQUENCES_BEFORE_EACH_INFO_SET)};
+  };
+  Cfr<size_t, std::pair<size_t, size_t>, Numeric> patient(
+      utilsForPlayer1, altPolicyGeneratorProfileFactory(),
+      averageGeneratorProfileFactory());
   size_t t = 1;
   while (true) {
     patient.doIteration();

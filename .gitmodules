@@ -1,0 +1,6 @@
+[submodule "vendor/utilities"]
+	path = vendor/utilities
+	url = https://github.com/dmorrill10/cpp_utilities.git
+[submodule "vendor/catch"]
+	path = vendor/Catch
+	url = https://github.com/philsquared/Catch.git
