@@ -16,7 +16,7 @@ template <typename Value, typename Symbol>
 class HistoryTreeNode : public TreeNode::TreeNode<Value> {
  public:
   HistoryTreeNode(History::History<Symbol>*&& history)
-      : TreeNode::TreeNode<Value>::TreeNode(), history_(history) {
+      : TreeNode::TreeNode<Value>::TreeNode(), history_(std::move(history)) {
     assert(history_);
   }
 
@@ -28,19 +28,36 @@ class HistoryTreeNode : public TreeNode::TreeNode<Value> {
   History::History<Symbol>* history_;
 };
 
-template <class Symbol>
-class PreorderHistoryTreeTraversal : public HistoryTreeNode<char, Symbol> {
+template <typename Symbol>
+class NoReturnHistoryTreeNode : public TreeNode::NoReturnTreeNode {
  public:
-  using HistoryTreeNode<char, Symbol>::HistoryTreeNode;
+  NoReturnHistoryTreeNode(History::History<Symbol>*&& history)
+      : NoReturnTreeNode(), history_(std::move(history)) {
+    assert(history_);
+  }
+
+  virtual ~NoReturnHistoryTreeNode() {
+    Utilities::Memory::deletePointer(history_);
+  }
+  virtual bool isTerminal() const { return !history_->hasSuccessors(); }
+  virtual const History::History<Symbol>* history() const { return history_; };
 
  protected:
-  virtual char terminalValue() override { return 0; }
-  virtual char interiorValue() override {
+  History::History<Symbol>* history_;
+};
+
+template <class Symbol>
+class PreorderHistoryTreeTraversal : public NoReturnHistoryTreeNode<Symbol> {
+ public:
+  using NoReturnHistoryTreeNode<Symbol>::NoReturnHistoryTreeNode;
+
+ protected:
+  virtual void computeTerminalValue() override {}
+  virtual void computeInteriorValue() override {
     this->history_->eachSuccessor([this](size_t, size_t) {
       this->value();
       return false;
     });
-    return 0;
   }
 };
 }

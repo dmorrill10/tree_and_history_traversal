@@ -35,7 +35,7 @@ class TerminalNode : public TreeNode<Value> {
 
  public:
   virtual ~TerminalNode() {}
-  virtual bool isTerminal() const { return true; }
+  virtual bool isTerminal() const override { return true; }
 
  protected:
   virtual Value interiorValue() override final { return Value(); }
@@ -48,7 +48,7 @@ class InteriorNode : public TreeNode<Value> {
 
  public:
   virtual ~InteriorNode() {}
-  virtual bool isTerminal() const { return false; }
+  virtual bool isTerminal() const override { return false; }
 
  protected:
   virtual Value terminalValue() override final { return Value(); }
@@ -120,6 +120,26 @@ class StoredInteriorNode : public InteriorNode<Value> {
  protected:
   std::vector<TreeNode<Value>*> children_;
   std::function<Value(Value&& childValue)> f_;
+};
+
+class NoReturnTreeNode {
+ protected:
+  NoReturnTreeNode() {}
+
+ public:
+  virtual ~NoReturnTreeNode() {}
+  virtual bool isTerminal() const = 0;
+  virtual void computeValue() {
+    if (isTerminal()) {
+      computeTerminalValue();
+    } else {
+      computeInteriorValue();
+    }
+  }
+
+ protected:
+  virtual void computeTerminalValue() = 0;
+  virtual void computeInteriorValue() = 0;
 };
 }
 }
