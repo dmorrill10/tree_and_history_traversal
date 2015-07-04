@@ -55,7 +55,7 @@ class PreorderHistoryTreeTraversal : public NoReturnHistoryTreeNode<Symbol> {
   virtual void computeTerminalValue() override {}
   virtual void computeInteriorValue() override {
     this->history_->eachSuccessor([this](size_t, size_t) {
-      this->value();
+      this->computeValue();
       return false;
     });
   }
