@@ -31,6 +31,7 @@ CFLAGS = -fPIC -march=native
 ### C++
 CPPFLAGS := $(CFLAGS)
 #CLANG_OPTIONS = -fsanitize=memory -fno-optimize-sibling-calls -fno-omit-frame-pointer -fsanitize-memory-track-origins=1
+CLANG_OPTIONS =-fcolor-diagnostics
 CPP =clang++ -std=c++11 $(CLANG_OPTIONS)
 
 
@@ -103,17 +104,17 @@ INCLUDES +=$(SRC_INCLUDES)
 %.c.o: %.c
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [CC] $@
-	@$(CC) -c $(CFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
+	$(CC) -c $(CFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
 
 %.cpp.o: %.cpp | $(UTILITIES_DIR)
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [CPP] $@
-	@$(CPP) -c $(CPPFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
+	$(CPP) -c $(CPPFLAGS) $(TO_FILE) $@ $^ $(INCLUDES)
 
 $(TARGETS): $(CPP_LIB_OBJ) $(C_LIB_OBJ) $(MAIN_OBJ)
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [LD] $@
-	@$(CPP) $(CPPFLAGS) $(LDFLAGS) $(TO_FILE) $@ $^ $(LDLIBS)
+	$(CPP) $(CPPFLAGS) $(LDFLAGS) $(TO_FILE) $@ $^ $(LDLIBS)
 	@chmod 755 $@
 
 
@@ -197,7 +198,7 @@ T = $(abspath $(TEST_EXECUTABLE_DIR))/$(TEST_PREFIX)
 $(T)%$(TEST_EXTENSION): $(TEST_DIR)/$(TEST_PREFIX)%.cpp.o $(CPP_LIB_OBJ) $(C_LIB_OBJ) $(TEST_SUPPORT_OBJ) | $(UTILITIES_DIR)
 	@if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 	@echo [LD] $@
-	@$(CPP) $(CPPFLAGS) $(TO_FILE) $@ $^ $(VENDOR_OBJS) $(LDLIBS)
+	$(CPP) $(CPPFLAGS) $(TO_FILE) $@ $^ $(VENDOR_OBJS) $(LDLIBS)
 	@chmod 755 $@
 
 
