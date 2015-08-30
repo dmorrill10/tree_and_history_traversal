@@ -6,10 +6,6 @@
 
 #include "utils.hpp"
 
-extern "C" {
-#include <utilities/src/lib/print_debugger.h>
-}
-
 namespace TreeAndHistoryTraversal {
 namespace PolicyGenerator {
 
@@ -61,11 +57,6 @@ class RegretMatchingTable
             table_[baseIndex + i] > 0.0 ? table_[baseIndex + i] / sum : 0.0;
       }
     }
-
-    DEBUG_VARIABLE("%lg", table_[baseIndex + 0]);
-    DEBUG_VARIABLE("%lg", table_[baseIndex + 1]);
-    DEBUG_VARIABLE("%lg", policy_[0]);
-    DEBUG_VARIABLE("%lg", policy_[1]);
 
     return policy_;
   }

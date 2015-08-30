@@ -4,10 +4,7 @@
 #include <cassert>
 #include <functional>
 
-extern "C" {
-#include <utilities/src/lib/print_debugger.h>
-}
-#include <utilities/src/lib/memory.h>
+#include <cpp_utilities/src/lib/memory.h>
 
 namespace TreeAndHistoryTraversal {
 namespace TreeNode {

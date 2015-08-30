@@ -11,9 +11,6 @@
 #include "utils.hpp"
 #include "policy_generator.hpp"
 
-extern "C" {
-#include "../../vendor/utilities/src/lib/print_debugger.h"
-}
 namespace TreeAndHistoryTraversal {
 namespace Game {
 template <typename HistoryType>
@@ -88,8 +85,6 @@ class BestResponse
 
   virtual double averageExploitability() {
     const auto brValues = valueProfile();
-    DEBUG_VARIABLE("%lg", brValues[0]);
-    DEBUG_VARIABLE("%lg", brValues[1]);
     return (brValues[0] + brValues[1]) / 2.0;
   }
 
@@ -259,7 +254,6 @@ class Cfr
         [this, &myChoice](size_t opponentChoice) {
           return utilsForPlayer1_->at(myChoice).at(opponentChoice);
         };
-    DEBUG_VARIABLE("%zu", i_);
     if (i_ == 1) {
       sign = -1;
       not_i = 0;
@@ -270,11 +264,8 @@ class Cfr
     Utils::Numeric value = 0.0;
     for (size_t opponentChoice = 0;
          opponentChoice < reachProbProfile_[not_i].size(); ++opponentChoice) {
-      DEBUG_VARIABLE("%lg", reachProbProfile_[not_i][opponentChoice]);
-      DEBUG_VARIABLE("%lg", u(opponentChoice));
       value +=
           (sign * reachProbProfile_[not_i][opponentChoice] * u(opponentChoice));
-      DEBUG_VARIABLE("%lg", values[opponentChoice]);
     }
     return value;
   }
@@ -290,11 +281,9 @@ class Cfr
       size_t actor,
       const std::vector<Utils::Numeric>& sigma_I) {
     Utils::Numeric counterfactualValue;
-    DEBUG_VARIABLE("%zu", i_);
     reachProbProfile_[actor] =
         Utils::copyAndReturnAfter(reachProbProfile_[actor], [&]() {
           history_->eachSuccessor([&](size_t, size_t legalSuccessorIndex) {
-            DEBUG_VARIABLE("%lg", sigma_I[legalSuccessorIndex]);
             assert(sigma_I[legalSuccessorIndex] >= 0.0);
             reachProbProfile_[actor][legalSuccessorIndex] *=
                 sigma_I[legalSuccessorIndex];

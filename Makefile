@@ -54,7 +54,7 @@ $(VENDOR_DIR):
 # Vendor definitions
 #-------------------
 
-UTILITIES_DIR :=$(VENDOR_DIR)/utilities
+UTILITIES_DIR :=$(VENDOR_DIR)/cpp_utilities
 
 
 VENDOR_INCLUDES :=-I$(VENDOR_DIR)

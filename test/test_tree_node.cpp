@@ -8,7 +8,7 @@
 #include <lib/tree_node.hpp>
 
 extern "C" {
-#include <utilities/src/lib/print_debugger.h>
+#include <cpp_utilities/src/lib/print_debugger.h>
 }
 
 using namespace TreeAndHistoryTraversal;
